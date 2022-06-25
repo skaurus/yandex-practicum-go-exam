@@ -77,9 +77,9 @@ func (db pg) QueryRow(ctx context.Context, dst interface{}, query string, args .
 		if err = pgxscan.ScanRow(dst, rows); err != nil {
 			return
 		}
-		return true, nil
+		found = true
 	}
-	return false, rows.Err()
+	return found, rows.Err()
 }
 
 func (db pg) QueryAll(ctx context.Context, dst interface{}, query string, args ...interface{}) error {
