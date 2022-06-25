@@ -12,6 +12,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/skaurus/yandex-practicum-go-exam/internal/db"
+
 	"github.com/gin-gonic/gin"
 	"github.com/rs/zerolog"
 	"github.com/spf13/viper"
@@ -104,14 +106,16 @@ func (app App) middlewareSetCookies(c *gin.Context) {
 }
 
 type App struct {
+	DB     db.DB
 	Logger *zerolog.Logger
 }
 
-func SetupRouter(logger *zerolog.Logger) *gin.Engine {
+func SetupRouter(db db.DB, logger *zerolog.Logger) *gin.Engine {
 	gin.DisableConsoleColor()
 	gin.DefaultWriter = io.MultiWriter(os.Stdout)
 
 	app := App{
+		DB:     db,
 		Logger: logger,
 	}
 

@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/skaurus/yandex-practicum-go-exam/internal/app"
+	"github.com/skaurus/yandex-practicum-go-exam/internal/db"
 
 	"github.com/rs/zerolog"
 	"github.com/spf13/pflag"
@@ -20,14 +21,18 @@ import (
 
 func initConfig() (err error) {
 	const (
-		defaultRunAddress     = "localhost:8080"
-		defaultAccrualAddress = "localhost:7979"
-		defaultCookieDomain   = "localhost"
+		defaultRunAddress       = "localhost:8080"
+		defaultAccrualAddress   = "localhost:7979"
+		defaultCookieDomain     = "localhost"
+		defaultDBConnectTimeout = 1 * time.Second
+		defaultDBQueryTimeout   = 1 * time.Second
 	)
 
 	viper.SetDefault("RUN_ADDRESS", defaultRunAddress)
 	viper.SetDefault("ACCRUAL_SYSTEM_ADDRESS", defaultAccrualAddress)
 	viper.SetDefault("COOKIE_DOMAIN", defaultCookieDomain)
+	viper.SetDefault("DB_CONNECT_TIMEOUT", defaultDBConnectTimeout)
+	viper.SetDefault("DB_QUERY_TIMEOUT", defaultDBQueryTimeout)
 
 	// выбранные имена ключей конфига совпадают с env-переменными (why not)
 	if err = viper.BindEnv("RUN_ADDRESS", "RUN_ADDRESS"); err != nil {
@@ -63,6 +68,15 @@ func initLogging(w io.Writer) zerolog.Logger {
 	return zerolog.New(w).With().Timestamp().Logger()
 }
 
+func initDB() (db.DB, error) {
+	ctx, cancel := context.WithTimeout(
+		context.Background(),
+		viper.Get("DB_CONNECT_TIMEOUT").(time.Duration),
+	)
+	defer cancel()
+	return db.Connect(ctx)
+}
+
 func main() {
 	rand.Seed(time.Now().UnixNano())
 
@@ -73,9 +87,14 @@ func main() {
 		panic(err)
 	}
 
+	db, err := initDB()
+	if err != nil {
+		panic(err)
+	}
+
 	logger := initLogging(os.Stdout)
 
-	router := app.SetupRouter(&logger)
+	router := app.SetupRouter(db, &logger)
 	srv := &http.Server{
 		Addr:    viper.Get("RUN_ADDRESS").(string),
 		Handler: router,
