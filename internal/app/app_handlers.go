@@ -1,8 +1,10 @@
 package app
 
 import (
+	"encoding/base64"
 	"io"
 	"net/http"
+	"time"
 
 	"github.com/skaurus/yandex-practicum-go-exam/internal/users"
 
@@ -36,6 +38,43 @@ func (runEnv Env) parseUserRequest(c *gin.Context) (ok bool, req users.Request) 
 	return true, req
 }
 
+const (
+	loginCookieName   = "whoami"
+	loginCookieMaxAge = time.Duration(1e9 * 60 * 60 * 24 * 365) // seconds
+)
+
+func (runEnv Env) setAuthCookie(c *gin.Context, u users.User) {
+	loginBytes := []byte(u.Login)
+
+	runEnv.setSignedCookie(
+		c,
+		loginCookieName, base64.StdEncoding.EncodeToString(loginBytes),
+		int(loginCookieMaxAge.Seconds()), "/", false, true,
+	)
+}
+
+func (runEnv Env) getUserFromCookie(c *gin.Context) (u users.User) {
+	logger := runEnv.Logger()
+
+	found, encodedLogin := runEnv.getSignedCookie(c, loginCookieName)
+	if !found || len(encodedLogin) == 0 {
+		return
+	}
+
+	loginBytes, err := base64.StdEncoding.DecodeString(encodedLogin)
+	if err != nil {
+		logger.Error().Err(err).Msg("login cookie decode error")
+		return
+	}
+
+	u, err = runEnv.users.GetByLogin(c, string(loginBytes))
+	if err != nil {
+		logger.Error().Err(err).Msg("db error")
+	}
+
+	return
+}
+
 func (runEnv Env) handlerUserRegister(c *gin.Context) {
 	logger := runEnv.Logger()
 
@@ -56,6 +95,8 @@ func (runEnv Env) handlerUserRegister(c *gin.Context) {
 		c.String(http.StatusConflict, "login already taken")
 		return
 	}
+
+	runEnv.setAuthCookie(c, user)
 
 	c.String(http.StatusOK, "")
 }
@@ -86,9 +127,13 @@ func (runEnv Env) handlerUserLogin(c *gin.Context) {
 		return
 	}
 
+	runEnv.setAuthCookie(c, user)
+
 	c.String(http.StatusOK, "")
 }
 
-func (runEnv Env) handlerPing(c *gin.Context) {
-	c.String(http.StatusOK, "")
+func (runEnv Env) handlerSayMyName(c *gin.Context) {
+	user := runEnv.getUserFromCookie(c)
+
+	c.String(http.StatusOK, user.Login)
 }
