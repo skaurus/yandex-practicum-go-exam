@@ -12,7 +12,7 @@ import (
 
 var json = jsoniter.ConfigCompatibleWithStandardLibrary
 
-func (runEnv Env) handlerUserRegister(c *gin.Context) {
+func (runEnv Env) parseUserRequest(c *gin.Context) (ok bool, req users.Request) {
 	logger := runEnv.Logger()
 
 	body, err := io.ReadAll(c.Request.Body)
@@ -21,7 +21,6 @@ func (runEnv Env) handlerUserRegister(c *gin.Context) {
 		c.String(http.StatusBadRequest, err.Error())
 		return
 	}
-	var req users.Request
 	err = json.Unmarshal(body, &req)
 	if err != nil {
 		logger.Error().Err(err).Msg("can't parse body")
@@ -34,6 +33,17 @@ func (runEnv Env) handlerUserRegister(c *gin.Context) {
 		return
 	}
 
+	return true, req
+}
+
+func (runEnv Env) handlerUserRegister(c *gin.Context) {
+	logger := runEnv.Logger()
+
+	ok, req := runEnv.parseUserRequest(c)
+	if !ok {
+		return
+	}
+
 	user, err := runEnv.users.Create(c, req)
 	if err != nil {
 		logger.Error().Err(err).Msgf("db error: %v", err)
@@ -41,9 +51,38 @@ func (runEnv Env) handlerUserRegister(c *gin.Context) {
 		return
 	}
 	if user.ID == 0 {
-		// не 100% уверен, что других причин пустого юзера не может быть...
-		// но скорее всего дело в этом
+		// Не 100% уверен, что других причин пустого юзера не может быть...
+		// Но скорее всего дело в этом
 		c.String(http.StatusConflict, "login already taken")
+		return
+	}
+
+	c.String(http.StatusOK, "")
+}
+
+func (runEnv Env) handlerUserLogin(c *gin.Context) {
+	logger := runEnv.Logger()
+
+	ok, req := runEnv.parseUserRequest(c)
+	if !ok {
+		return
+	}
+
+	user, err := runEnv.users.GetByLogin(c, req.Login)
+	if err != nil {
+		logger.Error().Err(err).Msgf("db error: %v", err)
+		c.String(http.StatusBadRequest, "db error")
+		return
+	}
+	if user.ID == 0 {
+		// Не 100% уверен, что других причин пустого юзера не может быть...
+		// Но скорее всего дело в этом. Ошибка специально общая для логина и пароля
+		c.String(http.StatusUnauthorized, "wrong login or password")
+		return
+	}
+
+	if ok := runEnv.users.CheckPassword(user, req.Password); !ok {
+		c.String(http.StatusUnauthorized, "wrong login or password")
 		return
 	}
 

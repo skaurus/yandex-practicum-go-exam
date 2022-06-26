@@ -29,11 +29,14 @@ func initConfig() (err error) {
 		defaultDBQueryTimeout   = 1 * time.Second
 	)
 
+	// Автотесты не предполагают наличие конфиг-файла, поэтому в его качестве,
+	// для тех ключей, что не описаны в задании, выступают дефолтные значения.
 	viper.SetDefault("RUN_ADDRESS", defaultRunAddress)
 	viper.SetDefault("ACCRUAL_SYSTEM_ADDRESS", defaultAccrualAddress)
 	viper.SetDefault("COOKIE_DOMAIN", defaultCookieDomain)
 	viper.SetDefault("DB_CONNECT_TIMEOUT", defaultDBConnectTimeout)
 	viper.SetDefault("DB_QUERY_TIMEOUT", defaultDBQueryTimeout)
+	viper.SetDefault("PASSWORD_SECRET", "forum-prefix-guitar")
 
 	// выбранные имена ключей конфига совпадают с env-переменными (why not)
 	if err = viper.BindEnv("RUN_ADDRESS", "RUN_ADDRESS"); err != nil {

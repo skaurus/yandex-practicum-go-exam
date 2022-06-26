@@ -52,6 +52,7 @@ func SetupRouter(env *env.Env) *gin.Engine {
 	router.Use(runEnv.middlewareSetCookies)
 
 	router.POST("/api/user/register", runEnv.handlerUserRegister)
+	router.POST("/api/user/login", runEnv.handlerUserLogin)
 	router.GET("/ping", runEnv.handlerPing)
 
 	return router
