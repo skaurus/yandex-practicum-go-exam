@@ -123,7 +123,7 @@ func main() {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	if err := srv.Shutdown(ctx); err != nil {
-		logger.Fatal().Err(err).Msgf("can't shutdown the server because of %v", err)
+		logger.Fatal().Err(err).Msg("can't shutdown the server")
 	}
 
 	logger.Info().Msg("exited")
