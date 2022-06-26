@@ -51,8 +51,8 @@ func (runEnv Env) handlerUserRegister(c *gin.Context) {
 		return
 	}
 	if user.ID == 0 {
-		// Не 100% уверен, что других причин пустого юзера не может быть...
-		// Но скорее всего дело в этом
+		// Not 100% sure that this is the only reason to have an empty user.
+		// But it is for sure the most probable one.
 		c.String(http.StatusConflict, "login already taken")
 		return
 	}
@@ -75,8 +75,8 @@ func (runEnv Env) handlerUserLogin(c *gin.Context) {
 		return
 	}
 	if user.ID == 0 {
-		// Не 100% уверен, что других причин пустого юзера не может быть...
-		// Но скорее всего дело в этом. Ошибка специально общая для логина и пароля
+		// Not 100% sure that this is the only reason to have an empty user.
+		// But it is for sure the most probable one.
 		c.String(http.StatusUnauthorized, "wrong login or password")
 		return
 	}

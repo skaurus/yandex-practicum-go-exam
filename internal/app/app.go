@@ -40,10 +40,11 @@ func SetupRouter(env *env.Env) *gin.Engine {
 
 	runEnv := Env{
 		Env: env,
-		// прыжки через хула-хуп, чтобы:
-		// а) все использовали один и тот же env;
-		// б) env везде выступал в качестве method receiver, чтобы из него можно
-		//	  было удобно доставать DB и Logger
+		// Jumping through loops so:
+		// a) every package will use the same env;
+		// b) we could use env as a method receiver in every package, which
+		//    would be convenient. Method receiver must be of type from the
+		//    same package as method itself.
 		users: users.Env{Env: env},
 	}
 
@@ -62,8 +63,7 @@ const (
 	uniqCookieName   = "uniq"
 	uniqCookieMaxAge = time.Duration(1e9 * 60 * 60 * 24 * 365) // seconds
 	// https://edoceo.com/dev/mnemonic-password-generator
-	// лучше бы, конечно, брать из конфига, а не коммитить в код; но конфигурация
-	// приложения задана условиями задания
+	// It would be better to take this from config, but alas, we don't have one.
 	cookieSecretKey = "epoxy-equator-human"
 	asciiSymbols    = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
 )
@@ -79,24 +79,25 @@ func RandStringN(n int) string {
 
 var hmacer hash.Hash
 
-// middlewareSetCookies - проставляем/читаем куки
+// middlewareSetCookies - write/read transient cookies
 func (runEnv Env) middlewareSetCookies(c *gin.Context) {
 	logger := runEnv.Logger()
 
 	var uniq string
-	// блок с несколькими последовательными проверками - это способ не делать
-	// вложенные один в другой if (success) { ... }
-	// range написан так, чтобы for был выполнен ровно один раз
+	// I use for which is executed exactly once as a syntactic sugar. Inside I
+	// have 4 successive checks and each next check have meaning only if all
+	// previous checks succeeded. I could have wrapped ifs inside each other
+	// and that would be ugly and hard to read. This is way prettier.
 	for range []int{1} {
-		// 1. пытаемся прочитать куку уника
+		// 1. trying to read uniq cookie
 		cookieValue, err := c.Cookie(uniqCookieName)
-		if err != nil { // куки не было
+		if err != nil { // there was no cookie
 			logger.Info().Msg("no uniq cookie")
 			break
 		}
 
-		// 2. пытаемся достать из куки айди и подпись
-		// Cut появился только в go 1.18 ((
+		// 2. trying to get cookie value and its signature
+		// Unfortunately, Cut appeared only in Go 1.18 and project tests use 1.17
 		//maybeUniq, sign, found := strings.Cut(cookieValue, "-")
 		parts := strings.SplitN(cookieValue, "-", 2)
 		maybeUniq, sign := parts[0], parts[1]
@@ -105,7 +106,7 @@ func (runEnv Env) middlewareSetCookies(c *gin.Context) {
 			break
 		}
 
-		// 3. пытаемся расшифровать подпись куки уника
+		// 3. trying to decipher signature of the cookie
 		sign1, err := hex.DecodeString(sign)
 		if err != nil {
 			logger.Error().Msg("uniq cookie signature can't be decoded")

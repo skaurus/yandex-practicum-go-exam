@@ -45,8 +45,9 @@ func (runEnv Env) Create(ctx context.Context, req Request) (u User, err error) {
 		"INSERT INTO users (login, password) VALUES ($1, $2) ON CONFLICT DO NOTHING RETURNING id, login, password",
 		req.Login, HashPassword(req.Password),
 	)
-	// Если была ошибка - она попадёт в return; если был конфликт (такой логин
-	// уже есть в базе) - то u будет пустым. То есть никакая обработка не нужна
+	// If err was returned - it will end up in that return; if there was conflict
+	// (meaning that login is taken) - u will be empty. It means no further
+	// processing of the answer is required.
 	return
 }
 
@@ -59,24 +60,24 @@ func (runEnv Env) GetByLogin(ctx context.Context, login string) (u User, err err
 		"SELECT id, login, password FROM users WHERE login = $1",
 		login,
 	)
-	// Если была ошибка - она попадёт в return; если был !found (_, пропущенный
-	// return из QueryRow) - то u будет пустым. То есть никакая обработка не нужна
+	// If err was returned - it will end up in that return; if the missing return
+	// argument (found) is false - then u will be empty. It means no further
+	// processing of the answer is required.
 	return
 }
 
 func HashPassword(password string) string {
-	// Использованы весьма мягкие настройки Argon2id, чтобы сберечь ресурсы
-	// тестового контейнера. На проде стоило бы увеличить memory до 64Мб.
+	// Gentle Argon2id settings are used to be merciful on testing container.
+	// In production, memory should be increased to say 64MB.
 	hashedBytes := argon2.IDKey(
 		[]byte(password),
 		[]byte(viper.Get("PASSWORD_SECRET").(string)),
 		1,
-		16*1024, // 16Мб
+		16*1024, // 16MB
 		2,
 		32,
 	)
-	// А 1: - для поддержки нескольких схем хеширования паролей, на случай
-	// если потом мы решим это хеширование поменять.
+	// 1: prefix is used to be able to later introduce another hashing schemes.
 	return "1:" + base64.StdEncoding.EncodeToString(hashedBytes)
 }
 

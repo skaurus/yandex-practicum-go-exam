@@ -23,12 +23,12 @@ func (w gzWriter) WriteString(s string) (int, error) {
 	return w.Writer.Write([]byte(s))
 }
 
-// Header - избегаем попадания заголовков в gzWriter
+// Header - we need this to avoid gzipping HTTP headers
 func (w gzWriter) Header() http.Header {
 	return w.ResponseWriter.Header()
 }
 
-// WriteHeader - избегаем попадания заголовков в gzWriter
+// WriteHeader - we need this to avoid gzipping HTTP headers
 func (w gzWriter) WriteHeader(statusCode int) {
 	w.ResponseWriter.WriteHeader(statusCode)
 }
@@ -39,7 +39,7 @@ var gzipWriter *gzip.Writer
 func (runEnv Env) middlewareGzipCompression(c *gin.Context) {
 	logger := runEnv.Logger()
 
-	// разжимаем запрос
+	// reading gzipped request
 	ce := c.GetHeader("Content-Encoding")
 	switch {
 	case ce == "gzip":
@@ -56,9 +56,10 @@ func (runEnv Env) middlewareGzipCompression(c *gin.Context) {
 		defer gzipReader.Close()
 		c.Request.Body = gzipReader
 	case ce == "deflate":
-		// в документации написано, что io.ReadCloser, который возвращает zlib.NewReader,
-		// имплементирует интерфейс Resetter с методом Reset - но кажется это не так :(
-		// а без Reset смысла в кешировании глобальной переменной нет
+		// documentation states that io.ReadCloser, as returned by
+		// zlib.NewReader, does implement Resetter interface and so should have
+		// Reset method - but it seems not so. And without Reset we can't use
+		// global variable and save on its initializing.
 		//err := zlibReader.Reset(c.Request.Body)
 		zlibReader, err := zlib.NewReader(c.Request.Body)
 		if err != nil {
@@ -76,7 +77,7 @@ func (runEnv Env) middlewareGzipCompression(c *gin.Context) {
 		return
 	}
 
-	// жмём ответ
+	// writing gzipped answer
 	switch c.GetHeader("Content-Type") {
 	case "application/json", "application/javascript", "text/plain", "text/html", "text/css", "text/xml":
 		if gzipWriter == nil {

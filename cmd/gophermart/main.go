@@ -29,8 +29,10 @@ func initConfig() (err error) {
 		defaultDBQueryTimeout   = 1 * time.Second
 	)
 
-	// Автотесты не предполагают наличие конфиг-файла, поэтому в его качестве,
-	// для тех ключей, что не описаны в задании, выступают дефолтные значения.
+	// In production these values should be placed in a config file (I would
+	// prefer toml format) that is not committed to the repo, but test environment
+	// of this project does not allow me to somehow define a config, so I use
+	// default values as kind of config.
 	viper.SetDefault("RUN_ADDRESS", defaultRunAddress)
 	viper.SetDefault("ACCRUAL_SYSTEM_ADDRESS", defaultAccrualAddress)
 	viper.SetDefault("COOKIE_DOMAIN", defaultCookieDomain)
@@ -38,7 +40,7 @@ func initConfig() (err error) {
 	viper.SetDefault("DB_QUERY_TIMEOUT", defaultDBQueryTimeout)
 	viper.SetDefault("PASSWORD_SECRET", "forum-prefix-guitar")
 
-	// выбранные имена ключей конфига совпадают с env-переменными (why not)
+	// I chose that key names are the same as ENV variables (why not)
 	if err = viper.BindEnv("RUN_ADDRESS", "RUN_ADDRESS"); err != nil {
 		return err
 	}
@@ -49,8 +51,9 @@ func initConfig() (err error) {
 		return err
 	}
 
-	// есть нюанс. в прохождении курса требовалось, чтобы ENV имело приоритет
-	// перед флагами; а у viper приоритет обратный (и мне кажется, что так лучше)
+	// In the training project (not this one, this is graduate project) we were
+	// required to make ENV priority higher than flags; viper lib holds it other
+	// way around (and I prefer it so). Hope it is not a problem for the autotests.
 	pflag.String("a", defaultRunAddress, "run address of the app")
 	if err = viper.BindPFlag("RUN_ADDRESS", pflag.Lookup("a")); err != nil {
 		return err
@@ -115,8 +118,8 @@ func main() {
 	sig := <-sigCh
 	logger.Info().Msgf("got signal %s, exiting\n", sig)
 	close(sigCh)
-	// когда сработает cancel - Shutdown выполнится принудительно, даже если
-	// сервер ещё не дождался завершения всех запросов
+	// If cancel() fires, Shutdown will be executed forcefully, even if there
+	// is still requests processing.
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	if err := srv.Shutdown(ctx); err != nil {
