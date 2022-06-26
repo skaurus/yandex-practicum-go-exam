@@ -6,6 +6,6 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func (app App) handlerPing(c *gin.Context) {
+func (runEnv Env) handlerPing(c *gin.Context) {
 	c.String(http.StatusOK, "")
 }

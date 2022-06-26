@@ -13,11 +13,42 @@ import (
 	"time"
 
 	"github.com/skaurus/yandex-practicum-go-exam/internal/db"
+	"github.com/skaurus/yandex-practicum-go-exam/internal/env"
 
 	"github.com/gin-gonic/gin"
 	"github.com/rs/zerolog"
 	"github.com/spf13/viper"
 )
+
+type Env struct {
+	Env *env.Env
+}
+
+func (runEnv Env) DB() db.DB {
+	return runEnv.Env.DB()
+}
+
+func (runEnv Env) Logger() *zerolog.Logger {
+	return runEnv.Env.Logger()
+}
+
+func SetupRouter(env *env.Env) *gin.Engine {
+	gin.DisableConsoleColor()
+	gin.DefaultWriter = io.MultiWriter(os.Stdout)
+
+	runEnv := Env{
+		Env: env,
+	}
+
+	router := gin.Default()
+	router.Use(runEnv.middlewareGzipCompression)
+	router.Use(runEnv.middlewareSetCookies)
+
+	router.POST("/api/user/register", runEnv.handlerUserRegister)
+	router.GET("/ping", runEnv.handlerPing)
+
+	return router
+}
 
 const (
 	uniqCookieName   = "uniq"
@@ -41,8 +72,8 @@ func RandStringN(n int) string {
 var hmacer hash.Hash
 
 // middlewareSetCookies - проставляем/читаем куки
-func (app App) middlewareSetCookies(c *gin.Context) {
-	logger := app.Logger
+func (runEnv Env) middlewareSetCookies(c *gin.Context) {
+	logger := runEnv.Logger()
 
 	var uniq string
 	// блок с несколькими последовательными проверками - это способ не делать
@@ -103,27 +134,4 @@ func (app App) middlewareSetCookies(c *gin.Context) {
 	c.Set("uniq", uniq)
 
 	c.Next()
-}
-
-type App struct {
-	DB     db.DB
-	Logger *zerolog.Logger
-}
-
-func SetupRouter(db db.DB, logger *zerolog.Logger) *gin.Engine {
-	gin.DisableConsoleColor()
-	gin.DefaultWriter = io.MultiWriter(os.Stdout)
-
-	app := App{
-		DB:     db,
-		Logger: logger,
-	}
-
-	router := gin.Default()
-	router.Use(app.middlewareGzipCompression)
-	router.Use(app.middlewareSetCookies)
-
-	router.GET("/ping", app.handlerPing)
-
-	return router
 }

@@ -23,12 +23,12 @@ func (w gzWriter) WriteString(s string) (int, error) {
 	return w.Writer.Write([]byte(s))
 }
 
-// избегаем попадания заголовков в gzWriter
+// Header - избегаем попадания заголовков в gzWriter
 func (w gzWriter) Header() http.Header {
 	return w.ResponseWriter.Header()
 }
 
-// избегаем попадания заголовков в gzWriter
+// WriteHeader - избегаем попадания заголовков в gzWriter
 func (w gzWriter) WriteHeader(statusCode int) {
 	w.ResponseWriter.WriteHeader(statusCode)
 }
@@ -36,8 +36,8 @@ func (w gzWriter) WriteHeader(statusCode int) {
 var gzipReader *gzip.Reader
 var gzipWriter *gzip.Writer
 
-func (app App) middlewareGzipCompression(c *gin.Context) {
-	logger := app.Logger
+func (runEnv Env) middlewareGzipCompression(c *gin.Context) {
+	logger := runEnv.Logger()
 
 	// разжимаем запрос
 	ce := c.GetHeader("Content-Encoding")

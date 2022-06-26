@@ -13,6 +13,7 @@ import (
 
 	"github.com/skaurus/yandex-practicum-go-exam/internal/app"
 	"github.com/skaurus/yandex-practicum-go-exam/internal/db"
+	"github.com/skaurus/yandex-practicum-go-exam/internal/env"
 
 	"github.com/rs/zerolog"
 	"github.com/spf13/pflag"
@@ -87,14 +88,16 @@ func main() {
 		panic(err)
 	}
 
-	db, err := initDB()
+	dbInstance, err := initDB()
 	if err != nil {
 		panic(err)
 	}
 
 	logger := initLogging(os.Stdout)
 
-	router := app.SetupRouter(db, &logger)
+	runEnv := env.Init(dbInstance, &logger)
+
+	router := app.SetupRouter(&runEnv)
 	srv := &http.Server{
 		Addr:    viper.Get("RUN_ADDRESS").(string),
 		Handler: router,
