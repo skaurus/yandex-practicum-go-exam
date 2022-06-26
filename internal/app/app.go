@@ -14,6 +14,7 @@ import (
 
 	"github.com/skaurus/yandex-practicum-go-exam/internal/db"
 	"github.com/skaurus/yandex-practicum-go-exam/internal/env"
+	"github.com/skaurus/yandex-practicum-go-exam/internal/users"
 
 	"github.com/gin-gonic/gin"
 	"github.com/rs/zerolog"
@@ -21,7 +22,8 @@ import (
 )
 
 type Env struct {
-	Env *env.Env
+	Env   *env.Env
+	users users.Env
 }
 
 func (runEnv Env) DB() db.DB {
@@ -38,6 +40,11 @@ func SetupRouter(env *env.Env) *gin.Engine {
 
 	runEnv := Env{
 		Env: env,
+		// прыжки через хула-хуп, чтобы:
+		// а) все использовали один и тот же env;
+		// б) env везде выступал в качестве method receiver, чтобы из него можно
+		//	  было удобно доставать DB и Logger
+		users: users.Env{Env: env},
 	}
 
 	router := gin.Default()
