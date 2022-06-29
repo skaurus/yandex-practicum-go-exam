@@ -32,7 +32,7 @@ func initConfig() (err error) {
 	// In production these values should be placed in a config file (I would
 	// prefer toml format) that is not committed to the repo, but test environment
 	// of this project does not allow me to somehow define a config, so I use
-	// default values as kind of config.
+	// default values as a kind of config.
 	viper.SetDefault("RUN_ADDRESS", defaultRunAddress)
 	viper.SetDefault("ACCRUAL_SYSTEM_ADDRESS", defaultAccrualAddress)
 	viper.SetDefault("COOKIE_DOMAIN", defaultCookieDomain)
@@ -80,8 +80,18 @@ func initDB() (db.DB, error) {
 		context.Background(),
 		viper.Get("DB_CONNECT_TIMEOUT").(time.Duration),
 	)
-	defer cancel()
-	return db.Connect(ctx)
+	dbInstance, err := db.Connect(ctx)
+	cancel()
+	if err != nil {
+		return nil, err
+	}
+
+	err = dbInstance.InitSchema(context.Background())
+	if err != nil {
+		return nil, err
+	}
+
+	return dbInstance, nil
 }
 
 func main() {

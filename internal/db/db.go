@@ -2,6 +2,7 @@ package db
 
 import (
 	"context"
+	"time"
 
 	"github.com/georgysavva/scany/pgxscan"
 	"github.com/jackc/pgx/v4"
@@ -15,6 +16,7 @@ type DB interface {
 	QueryRow(context.Context, interface{}, string, ...interface{}) (bool, error)
 	QueryAll(context.Context, interface{}, string, ...interface{}) error
 	Close()
+	InitSchema(ctx context.Context) error
 }
 
 type pg struct {
@@ -31,24 +33,7 @@ func Connect(ctx context.Context) (db DB, err error) {
 		return pg{}, err
 	}
 
-	db = pg{pgpool}
-
-	_, err = db.Exec(ctx, `
-CREATE TABLE IF NOT EXISTS users (
-	id			serial PRIMARY KEY,
-	login 		text NOT NULL,
-	password	text NOT NULL
-)`)
-	if err != nil {
-		return
-	}
-
-	_, err = db.Exec(ctx, "CREATE UNIQUE INDEX IF NOT EXISTS \"users_login_idx\" ON users (login)")
-	if err != nil {
-		return
-	}
-
-	return db, nil
+	return pg{pgpool}, nil
 }
 
 func (db pg) Close() {
@@ -94,4 +79,133 @@ func (db pg) QueryAll(ctx context.Context, dst interface{}, query string, args .
 	}
 
 	return rows.Err()
+}
+
+// InitSchema - probably it would be best to use some database migration
+// system - most of all, not for the ability to rollback a schema (it's better
+// to have documented deploy procedures IMO), but for a history of changes.
+func (db pg) InitSchema(origCtx context.Context) error {
+	ctx, cancel := context.WithTimeout(
+		origCtx,
+		viper.Get("DB_QUERY_TIMEOUT").(time.Duration),
+	)
+	_, err := db.Exec(ctx, `
+CREATE TABLE IF NOT EXISTS users (
+	id			serial PRIMARY KEY,
+	login 		text NOT NULL,
+	password	text NOT NULL,
+	balance     numeric(8,2) NOT NULL DEFAULT 0,
+	withdrawn	numeric(8,2) NOT NULL DEFAULT 0
+)`)
+	cancel()
+	if err != nil {
+		return err
+	}
+
+	ctx, cancel = context.WithTimeout(
+		origCtx,
+		viper.Get("DB_QUERY_TIMEOUT").(time.Duration),
+	)
+	_, err = db.Exec(ctx, `
+CREATE UNIQUE INDEX IF NOT EXISTS "users_login_idx" ON users (login)
+`)
+	cancel()
+	if err != nil {
+		return err
+	}
+
+	ctx, cancel = context.WithTimeout(
+		origCtx,
+		viper.Get("DB_QUERY_TIMEOUT").(time.Duration),
+	)
+	_, err = db.Exec(ctx, `
+DO $$
+BEGIN
+	IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'order_status') THEN
+		CREATE TYPE order_status AS enum ('NEW','PROCESSING','INVALID','PROCESSED');
+	END IF;
+END$$
+`)
+	cancel()
+	if err != nil {
+		return err
+	}
+
+	ctx, cancel = context.WithTimeout(
+		origCtx,
+		viper.Get("DB_QUERY_TIMEOUT").(time.Duration),
+	)
+	_, err = db.Exec(ctx, `
+CREATE TABLE IF NOT EXISTS orders (
+	id			serial PRIMARY KEY,
+	user_id		integer NOT NULL,
+	added_at	timestamp NOT NULL DEFAULT now(),
+	status		order_status NOT NULL
+)`)
+	cancel()
+	if err != nil {
+		return err
+	}
+
+	ctx, cancel = context.WithTimeout(
+		origCtx,
+		viper.Get("DB_QUERY_TIMEOUT").(time.Duration),
+	)
+	_, err = db.Exec(ctx, `
+CREATE INDEX IF NOT EXISTS "orders_user_id_added_at_idx" ON orders (user_id, added_at ASC)
+`)
+	cancel()
+	if err != nil {
+		return err
+	}
+
+	ctx, cancel = context.WithTimeout(
+		origCtx,
+		viper.Get("DB_QUERY_TIMEOUT").(time.Duration),
+	)
+	// Specification does not require me to store a debit operations, but this
+	// is a very useful feature. For example, we can always recheck user balance.
+	_, err = db.Exec(ctx, `
+DO $$
+BEGIN
+	IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'transaction_type') THEN
+		CREATE TYPE transaction_type AS enum ('debit','credit');
+	END IF;
+END$$
+`)
+	cancel()
+	if err != nil {
+		return err
+	}
+
+	ctx, cancel = context.WithTimeout(
+		origCtx,
+		viper.Get("DB_QUERY_TIMEOUT").(time.Duration),
+	)
+	_, err = db.Exec(ctx, `
+CREATE TABLE IF NOT EXISTS ledger (
+	id				serial PRIMARY KEY,
+	user_id 		integer NOT NULL,
+	processed_at  	timestamp NOT NULL DEFAULT now(),
+	operation 		transaction_type NOT NULL,
+	value     		numeric(8,2) NOT NULL
+)`)
+	cancel()
+	if err != nil {
+		return err
+	}
+
+	ctx, cancel = context.WithTimeout(
+		origCtx,
+		viper.Get("DB_QUERY_TIMEOUT").(time.Duration),
+	)
+	_, err = db.Exec(ctx, `
+CREATE INDEX IF NOT EXISTS "ledger_user_id_processed_at_idx" ON ledger (user_id, processed_at ASC)
+`)
+	cancel()
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

@@ -37,7 +37,7 @@ type Request struct {
 }
 
 func (runEnv Env) Create(ctx context.Context, req Request) (u User, err error) {
-	ctx, cancel := context.WithTimeout(ctx, 1*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, viper.Get("DB_QUERY_TIMEOUT").(time.Duration))
 	defer cancel()
 	_, err = runEnv.DB().QueryRow(
 		ctx,
@@ -52,7 +52,7 @@ func (runEnv Env) Create(ctx context.Context, req Request) (u User, err error) {
 }
 
 func (runEnv Env) GetByLogin(ctx context.Context, login string) (u User, err error) {
-	ctx, cancel := context.WithTimeout(ctx, 1*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, viper.Get("DB_QUERY_TIMEOUT").(time.Duration))
 	defer cancel()
 	_, err = runEnv.DB().QueryRow(
 		ctx,

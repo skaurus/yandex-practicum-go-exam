@@ -36,7 +36,7 @@ func SetupRouter(env *env.Env) *gin.Engine {
 
 	runEnv := Env{
 		Env: env,
-		// Jumping through loops so:
+		// Jumping through hoops so:
 		// a) every package will use the same env;
 		// b) we could use env as a method receiver in every package, which
 		//    would be convenient. Method receiver must be of type from the
