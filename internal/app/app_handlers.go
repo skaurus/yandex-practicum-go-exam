@@ -43,7 +43,7 @@ const (
 	loginCookieMaxAge = time.Duration(1e9 * 60 * 60 * 24 * 365) // seconds
 )
 
-func (runEnv Env) setAuthCookie(c *gin.Context, u users.User) {
+func (runEnv Env) setAuthCookie(c *gin.Context, u *users.User) {
 	loginBytes := []byte(u.Login)
 
 	runEnv.setSignedCookie(
@@ -53,7 +53,7 @@ func (runEnv Env) setAuthCookie(c *gin.Context, u users.User) {
 	)
 }
 
-func (runEnv Env) getUserFromCookie(c *gin.Context) (u users.User) {
+func (runEnv Env) getUserFromCookie(c *gin.Context) (u *users.User) {
 	logger := runEnv.Logger()
 
 	found, encodedLogin := runEnv.getSignedCookie(c, loginCookieName)

@@ -36,32 +36,34 @@ type Request struct {
 	Password string `json:"password"`
 }
 
-func (runEnv Env) Create(ctx context.Context, req Request) (u User, err error) {
+func (runEnv Env) Create(ctx context.Context, req Request) (u *User, err error) {
+	u = &User{}
 	ctx, cancel := context.WithTimeout(ctx, viper.Get("DB_QUERY_TIMEOUT").(time.Duration))
 	defer cancel()
 	_, err = runEnv.DB().QueryRow(
 		ctx,
-		&u,
+		u,
 		"INSERT INTO users (login, password) VALUES ($1, $2) ON CONFLICT DO NOTHING RETURNING id, login, password",
 		req.Login, HashPassword(req.Password),
 	)
 	// If err was returned - it will end up in that return; if there was conflict
-	// (meaning that login is taken) - u will be empty. It means no further
+	// (meaning that login is taken) - u will be nil. It means no further
 	// processing of the answer is required.
 	return
 }
 
-func (runEnv Env) GetByLogin(ctx context.Context, login string) (u User, err error) {
+func (runEnv Env) GetByLogin(ctx context.Context, login string) (u *User, err error) {
+	u = &User{}
 	ctx, cancel := context.WithTimeout(ctx, viper.Get("DB_QUERY_TIMEOUT").(time.Duration))
 	defer cancel()
 	_, err = runEnv.DB().QueryRow(
 		ctx,
-		&u,
+		u,
 		"SELECT id, login, password FROM users WHERE login = $1",
 		login,
 	)
 	// If err was returned - it will end up in that return; if the missing return
-	// argument (found) is false - then u will be empty. It means no further
+	// argument (found) is false - then u will be nil. It means no further
 	// processing of the answer is required.
 	return
 }
@@ -81,6 +83,6 @@ func HashPassword(password string) string {
 	return "1:" + base64.StdEncoding.EncodeToString(hashedBytes)
 }
 
-func (runEnv Env) CheckPassword(u User, password string) bool {
+func (runEnv Env) CheckPassword(u *User, password string) bool {
 	return u.Password == HashPassword(password)
 }
