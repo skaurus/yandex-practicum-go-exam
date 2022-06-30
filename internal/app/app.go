@@ -9,6 +9,7 @@ import (
 
 	"github.com/skaurus/yandex-practicum-go-exam/internal/db"
 	"github.com/skaurus/yandex-practicum-go-exam/internal/env"
+	"github.com/skaurus/yandex-practicum-go-exam/internal/orders"
 	"github.com/skaurus/yandex-practicum-go-exam/internal/users"
 
 	"github.com/gin-gonic/gin"
@@ -16,8 +17,9 @@ import (
 )
 
 type Env struct {
-	Env   *env.Env
-	users users.Env
+	Env    *env.Env
+	users  users.Env
+	orders orders.Env
 }
 
 func (runEnv Env) DB() db.DB {
@@ -41,7 +43,8 @@ func SetupRouter(env *env.Env) *gin.Engine {
 		// b) we could use env as a method receiver in every package, which
 		//    would be convenient. Method receiver must be of type from the
 		//    same package as method itself.
-		users: users.Env{Env: env},
+		users:  users.Env{Env: env},
+		orders: orders.Env{Env: env},
 	}
 
 	hmacer = hmac.New(sha256.New, []byte(cookieSecretKey))
@@ -50,9 +53,12 @@ func SetupRouter(env *env.Env) *gin.Engine {
 	router.Use(runEnv.middlewareGzipCompression)
 	router.Use(runEnv.middlewareSetCookies)
 
+	router.GET("/saymyname", runEnv.handlerSayMyName)
+
 	router.POST("/api/user/register", runEnv.handlerUserRegister)
 	router.POST("/api/user/login", runEnv.handlerUserLogin)
-	router.GET("/saymyname", runEnv.handlerSayMyName)
+	router.POST("/api/user/orders", runEnv.handlerOrderRegister)
+	router.GET("/api/user/orders", runEnv.handlerOrdersList)
 
 	return router
 }

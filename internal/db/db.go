@@ -137,10 +137,11 @@ END$$
 	)
 	_, err = db.Exec(ctx, `
 CREATE TABLE IF NOT EXISTS orders (
-	id			serial PRIMARY KEY,
+	number		integer PRIMARY KEY,
 	user_id		integer NOT NULL,
-	added_at	timestamp NOT NULL DEFAULT now(),
-	status		order_status NOT NULL
+	uploaded_at	timestamp with time zone NOT NULL DEFAULT now(),
+	status		order_status NOT NULL,
+	accrual 	numeric(8,2)
 )`)
 	cancel()
 	if err != nil {
@@ -152,7 +153,7 @@ CREATE TABLE IF NOT EXISTS orders (
 		viper.Get("DB_QUERY_TIMEOUT").(time.Duration),
 	)
 	_, err = db.Exec(ctx, `
-CREATE INDEX IF NOT EXISTS "orders_user_id_added_at_idx" ON orders (user_id, added_at ASC)
+CREATE INDEX IF NOT EXISTS "orders_user_id_uploaded_at_idx" ON orders (user_id, uploaded_at ASC)
 `)
 	cancel()
 	if err != nil {
