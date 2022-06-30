@@ -48,9 +48,9 @@ type status string
 
 const (
 	StatusNew        status = "NEW"
-	StatusProcessing        = "PROCESSING"
-	StatusInvalid           = "INVALID"
-	StatusProcessed         = "PROCESSED"
+	StatusProcessing status = "PROCESSING"
+	StatusInvalid    status = "INVALID"
+	StatusProcessed  status = "PROCESSED"
 )
 
 type Order struct {
