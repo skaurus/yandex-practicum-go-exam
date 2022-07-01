@@ -103,7 +103,7 @@ func (runEnv Env) Withdraw(ctx context.Context, ledgerEnv ledger.Env, userID int
 
 	return runEnv.DB().Transaction(ctx, func(ctx context.Context, db db.DB) error {
 		balance := &decimal.Decimal{}
-		_, err := db.QueryRow(
+		found, err := db.QueryRow(
 			ctx,
 			balance,
 			"SELECT balance FROM users WHERE id = $1",
@@ -112,7 +112,7 @@ func (runEnv Env) Withdraw(ctx context.Context, ledgerEnv ledger.Env, userID int
 		if err != nil {
 			return err
 		}
-		if balance == nil {
+		if !found {
 			return ErrNoSuchUser
 		}
 

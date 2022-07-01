@@ -145,7 +145,7 @@ func (runEnv Env) handlerUserLogin(c *gin.Context) {
 // implementations \d also matches utf-8 "digit" glyphs like this one:
 // https://www.fileformat.info/info/unicode/char/07c1/index.htm
 // This does not seem to be the case with Go though... but anyway.
-var onlyDigitsRe = regexp.MustCompile("^\\[0-9]+$")
+var onlyDigitsRe = regexp.MustCompile(`^[0-9]+$`)
 
 func (runEnv Env) handlerOrderRegister(c *gin.Context) {
 	logger := runEnv.Logger()
@@ -197,14 +197,14 @@ func (runEnv Env) handlerOrderRegister(c *gin.Context) {
 
 	if order.UserID == user.ID {
 		logger.Info().Msgf(
-			"order %d already inserted by this user %d",
+			"order %s already inserted by this user %d",
 			order.Number, order.UserID,
 		)
 		c.String(http.StatusOK, "")
 		return
 	} else {
 		logger.Warn().Msgf(
-			"order %d already inserted by another user (%d, not %d)",
+			"order %s already inserted by another user (%d, not %d)",
 			order.Number, order.UserID, user.ID,
 		)
 		c.String(http.StatusConflict, "")
@@ -305,6 +305,4 @@ func (runEnv Env) handlerUserWithdraw(c *gin.Context) {
 	default:
 		c.String(http.StatusInternalServerError, err.Error())
 	}
-
-	return
 }
