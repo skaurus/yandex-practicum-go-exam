@@ -78,7 +78,7 @@ RETURNING number::text, user_id, uploaded_at, status, accrual
 		number, userID, StatusNew,
 	)
 	// If err was returned - it will end up in that return; if there was conflict
-	// (meaning that login is taken) - o will be nil. It means no further
+	// (meaning that order already exists) - o will be nil. It means no further
 	// processing of the answer is required.
 	return
 }
@@ -114,8 +114,5 @@ ORDER BY uploaded_at ASC
 `,
 		userID,
 	)
-	// If err was returned - it will end up in that return; if the missing return
-	// argument (found) is false - then o will be nil. It means no further
-	// processing of the answer is required.
 	return
 }
