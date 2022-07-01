@@ -11,6 +11,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	jsoniter "github.com/json-iterator/go"
+	"github.com/shopspring/decimal"
 )
 
 var json = jsoniter.ConfigCompatibleWithStandardLibrary
@@ -228,4 +229,23 @@ func (runEnv Env) handlerOrdersList(c *gin.Context) {
 	}
 
 	c.PureJSON(http.StatusOK, orders)
+}
+
+type balanceResponse struct {
+	Current   decimal.Decimal `json:"current"`
+	Withdrawn decimal.Decimal `json:"withdrawn"`
+}
+
+func (runEnv Env) handlerUserGetBalance(c *gin.Context) {
+	logger := runEnv.Logger()
+
+	user := runEnv.getUserFromCookie(c)
+	if user == nil {
+		logger.Info().Msg("user not authenticated")
+		c.String(http.StatusUnauthorized, "user not authenticated")
+		return
+	}
+
+	decimal.MarshalJSONWithoutQuotes = true
+	c.PureJSON(http.StatusOK, balanceResponse{user.Balance, user.Withdrawn})
 }

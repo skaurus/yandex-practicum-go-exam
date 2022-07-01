@@ -59,6 +59,7 @@ func SetupRouter(env *env.Env) *gin.Engine {
 	router.POST("/api/user/login", runEnv.handlerUserLogin)
 	router.POST("/api/user/orders", runEnv.handlerOrderRegister)
 	router.GET("/api/user/orders", runEnv.handlerOrdersList)
+	router.GET("/api/user/balance", runEnv.handlerUserGetBalance)
 
 	return router
 }

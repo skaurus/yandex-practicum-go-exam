@@ -9,6 +9,7 @@ import (
 	"github.com/skaurus/yandex-practicum-go-exam/internal/env"
 
 	"github.com/rs/zerolog"
+	"github.com/shopspring/decimal"
 	"github.com/spf13/viper"
 	"golang.org/x/crypto/argon2"
 )
@@ -26,9 +27,11 @@ func (runEnv Env) Logger() *zerolog.Logger {
 }
 
 type User struct {
-	ID       uint32
-	Login    string
-	Password string
+	ID        uint32
+	Login     string
+	Password  string
+	Balance   decimal.Decimal
+	Withdrawn decimal.Decimal
 }
 
 type Request struct {

@@ -9,6 +9,7 @@ import (
 	"github.com/skaurus/yandex-practicum-go-exam/internal/env"
 
 	"github.com/rs/zerolog"
+	"github.com/shopspring/decimal"
 	"github.com/spf13/viper"
 )
 
@@ -54,11 +55,11 @@ const (
 )
 
 type Order struct {
-	Number     uint32      `json:"number"`
-	UserID     uint32      `json:"-"`
-	UploadedAt rfc3339Time `json:"uploaded_at"`
-	Status     status      `json:"status"`
-	Accrual    *string     `json:"accrual,omitempty"`
+	Number     uint32           `json:"number"`
+	UserID     uint32           `json:"-"`
+	UploadedAt rfc3339Time      `json:"uploaded_at"`
+	Status     status           `json:"status"`
+	Accrual    *decimal.Decimal `json:"accrual,omitempty"`
 }
 
 func (runEnv Env) Create(ctx context.Context, number int, userID int) (o *Order, err error) {
