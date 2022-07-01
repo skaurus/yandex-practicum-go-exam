@@ -2,9 +2,11 @@ package db
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"github.com/georgysavva/scany/pgxscan"
+	"github.com/jackc/pgconn"
 	"github.com/jackc/pgtype"
 	shopspring "github.com/jackc/pgtype/ext/shopspring-numeric"
 	"github.com/jackc/pgx/v4"
@@ -12,17 +14,32 @@ import (
 	"github.com/spf13/viper"
 )
 
+// What i'm trying to do here is bring some unified interface for pgxpool.Pool
+// and pgx.Tx, so that code can do not think about whether now it should call
+// one of these db methods on pool connection or transaction descriptor.
+// For some reason, there is no such thing from jackc himself.
+// See also handle() and MustTx().
+type queryMaker interface {
+	Exec(ctx context.Context, sql string, args ...interface{}) (pgconn.CommandTag, error)
+	Query(ctx context.Context, sql string, args ...interface{}) (pgx.Rows, error)
+}
+
 type DB interface {
+	handle() queryMaker
 	Exec(context.Context, string, ...interface{}) (int64, error)
 	Query(context.Context, string, ...interface{}) (pgx.Rows, error)
 	QueryRow(context.Context, interface{}, string, ...interface{}) (bool, error)
 	QueryAll(context.Context, interface{}, string, ...interface{}) error
+	Transaction(context.Context, func(context.Context, DB) error) error
+	MustTx() pgx.Tx // WARNING - will panic if currently not in a transaction
+	Rollback(context.Context) error
 	Close()
-	InitSchema(ctx context.Context) error
+	InitSchema(context.Context) error
 }
 
 type pg struct {
-	handle *pgxpool.Pool
+	conn *pgxpool.Pool
+	tx   *pgx.Tx
 }
 
 func Connect(ctx context.Context) (db DB, err error) {
@@ -45,15 +62,64 @@ func Connect(ctx context.Context) (db DB, err error) {
 		return pg{}, err
 	}
 
-	return pg{pgpool}, nil
+	return pg{pgpool, nil}, nil
 }
 
 func (db pg) Close() {
-	db.handle.Close()
+	db.conn.Close()
+}
+
+var ErrNestedTransaction = errors.New("nested transactions are not supported")
+var ErrNotInATransaction = errors.New("not in a transaction now")
+
+func (db pg) Transaction(ctx context.Context, doWork func(context.Context, DB) error) error {
+	if db.tx != nil {
+		return ErrNestedTransaction
+	}
+
+	tx, err := db.conn.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	db.tx = &tx
+	defer db.Rollback(ctx)
+
+	err = doWork(ctx, db)
+	if err != nil {
+		return err
+	}
+
+	err = tx.Commit(ctx)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (db pg) handle() queryMaker {
+	if db.tx == nil {
+		return db.conn
+	} else {
+		return *db.tx
+	}
+}
+
+func (db pg) MustTx() pgx.Tx {
+	if db.tx == nil {
+		panic(ErrNotInATransaction)
+	}
+	return *db.tx
+}
+
+func (db pg) Rollback(ctx context.Context) error {
+	defer func() { db.tx = nil }()
+
+	return db.MustTx().Rollback(ctx)
 }
 
 func (db pg) Exec(ctx context.Context, query string, args ...interface{}) (int64, error) {
-	comTag, err := db.handle.Exec(ctx, query, args...)
+	comTag, err := db.handle().Exec(ctx, query, args...)
 	if err != nil {
 		return 0, err
 	}
@@ -61,11 +127,11 @@ func (db pg) Exec(ctx context.Context, query string, args ...interface{}) (int64
 }
 
 func (db pg) Query(ctx context.Context, query string, args ...interface{}) (pgx.Rows, error) {
-	return db.handle.Query(ctx, query, args...)
+	return db.handle().Query(ctx, query, args...)
 }
 
 func (db pg) QueryRow(ctx context.Context, dst interface{}, query string, args ...interface{}) (found bool, err error) {
-	rows, err := db.handle.Query(ctx, query, args...)
+	rows, err := db.handle().Query(ctx, query, args...)
 	if err != nil {
 		return false, err
 	}
@@ -80,7 +146,7 @@ func (db pg) QueryRow(ctx context.Context, dst interface{}, query string, args .
 }
 
 func (db pg) QueryAll(ctx context.Context, dst interface{}, query string, args ...interface{}) error {
-	rows, err := db.handle.Query(ctx, query, args...)
+	rows, err := db.handle().Query(ctx, query, args...)
 	if err != nil {
 		return err
 	}
