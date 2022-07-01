@@ -215,7 +215,7 @@ END$$
 	)
 	_, err = db.Exec(ctx, `
 CREATE TABLE IF NOT EXISTS orders (
-	number		integer PRIMARY KEY,
+	number		bigint PRIMARY KEY,
 	user_id		integer NOT NULL,
 	uploaded_at	timestamp with time zone NOT NULL DEFAULT now(),
 	status		order_status NOT NULL,
@@ -265,6 +265,7 @@ END$$
 CREATE TABLE IF NOT EXISTS ledger (
 	id				serial PRIMARY KEY,
 	user_id 		integer NOT NULL,
+	order_number 	bigint NOT NULL,
 	processed_at  	timestamp NOT NULL DEFAULT now(),
 	operation 		transaction_type NOT NULL,
 	value     		numeric(8,2) NOT NULL

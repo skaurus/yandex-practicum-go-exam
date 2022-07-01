@@ -55,14 +55,14 @@ const (
 )
 
 type Order struct {
-	Number     uint32           `json:"number"`
+	Number     string           `json:"number"`
 	UserID     uint32           `json:"-"`
 	UploadedAt rfc3339Time      `json:"uploaded_at"`
 	Status     status           `json:"status"`
 	Accrual    *decimal.Decimal `json:"accrual,omitempty"`
 }
 
-func (runEnv Env) Create(ctx context.Context, number int, userID int) (o *Order, err error) {
+func (runEnv Env) Create(ctx context.Context, number string, userID int) (o *Order, err error) {
 	o = &Order{}
 	ctx, cancel := context.WithTimeout(ctx, viper.Get("DB_QUERY_TIMEOUT").(time.Duration))
 	defer cancel()
@@ -71,9 +71,9 @@ func (runEnv Env) Create(ctx context.Context, number int, userID int) (o *Order,
 		o,
 		`
 INSERT INTO orders (number, user_id, status)
-VALUES ($1, $2, $3)
+VALUES ($1::bigint, $2, $3)
 ON CONFLICT DO NOTHING
-RETURNING number, user_id, uploaded_at, status, accrual
+RETURNING number::text, user_id, uploaded_at, status, accrual
 `,
 		number, userID, StatusNew,
 	)
@@ -83,14 +83,14 @@ RETURNING number, user_id, uploaded_at, status, accrual
 	return
 }
 
-func (runEnv Env) GetByNumber(ctx context.Context, number int) (o *Order, err error) {
+func (runEnv Env) GetByNumber(ctx context.Context, number string) (o *Order, err error) {
 	o = &Order{}
 	ctx, cancel := context.WithTimeout(ctx, viper.Get("DB_QUERY_TIMEOUT").(time.Duration))
 	defer cancel()
 	_, err = runEnv.DB().QueryRow(
 		ctx,
 		o,
-		"SELECT number, user_id, uploaded_at, status, accrual FROM orders WHERE number = $1",
+		"SELECT number::text, user_id, uploaded_at, status, accrual FROM orders WHERE number = $1::bigint",
 		number,
 	)
 	// If err was returned - it will end up in that return; if the missing return
@@ -107,7 +107,7 @@ func (runEnv Env) GetListByUserID(ctx context.Context, userID int) (os *[]Order,
 		ctx,
 		os,
 		`
-SELECT number, user_id, uploaded_at, status, accrual
+SELECT number::text, user_id, uploaded_at, status, accrual
 FROM orders
 WHERE user_id = $1
 ORDER BY uploaded_at ASC

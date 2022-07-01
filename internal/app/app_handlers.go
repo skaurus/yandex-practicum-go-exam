@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"io"
 	"net/http"
+	"regexp"
 	"strconv"
 	"time"
 
@@ -140,6 +141,12 @@ func (runEnv Env) handlerUserLogin(c *gin.Context) {
 	c.String(http.StatusOK, "")
 }
 
+// I intentionally use [0-9] as opposed to \d. Surprisingly, in some regexp
+// implementations \d also matches utf-8 "digit" glyphs like this one:
+// https://www.fileformat.info/info/unicode/char/07c1/index.htm
+// This does not seem to be the case with Go though... but anyway.
+var onlyDigitsRe = regexp.MustCompile("^\\[0-9]+$")
+
 func (runEnv Env) handlerOrderRegister(c *gin.Context) {
 	logger := runEnv.Logger()
 
@@ -150,41 +157,40 @@ func (runEnv Env) handlerOrderRegister(c *gin.Context) {
 		return
 	}
 
-	body, err := io.ReadAll(c.Request.Body)
+	orderNumber, err := io.ReadAll(c.Request.Body)
 	if err != nil {
 		logger.Error().Err(err).Msg("can't read request body")
 		c.String(http.StatusBadRequest, err.Error())
 		return
 	}
 
-	orderID, err := strconv.Atoi(string(body))
-	if err != nil {
+	if !onlyDigitsRe.Match(orderNumber) {
 		logger.Error().Msg("order format is wrong")
 		c.String(http.StatusUnprocessableEntity, "order format is wrong")
 		return
 	}
 
-	order, err := runEnv.orders.Create(c, orderID, int(user.ID))
+	order, err := runEnv.orders.Create(c, string(orderNumber), int(user.ID))
 	if err != nil {
 		logger.Error().Err(err).Msgf("db error: %v", err)
 		c.String(http.StatusBadRequest, "db error")
 		return
 	}
 	// order will be not nil only if new order was inserted successfully
-	if order.Number > 0 {
+	if len(order.Number) > 0 {
 		c.String(http.StatusAccepted, "")
 		return
 	}
 
 	// if we here, it probably means such order id was already in db
-	order, err = runEnv.orders.GetByNumber(c, orderID)
+	order, err = runEnv.orders.GetByNumber(c, string(orderNumber))
 	if err != nil {
 		logger.Error().Err(err).Msgf("db error: %v", err)
 		c.String(http.StatusBadRequest, "db error")
 		return
 	}
-	if order.Number == 0 {
-		logger.Error().Msgf("cannot neither insert nor find order with id %d", orderID)
+	if len(order.Number) == 0 {
+		logger.Error().Msgf("cannot neither insert nor find order number %s", order.Number)
 		c.String(http.StatusBadRequest, "")
 		return
 	}
