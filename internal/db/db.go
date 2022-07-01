@@ -5,6 +5,8 @@ import (
 	"time"
 
 	"github.com/georgysavva/scany/pgxscan"
+	"github.com/jackc/pgtype"
+	shopspring "github.com/jackc/pgtype/ext/shopspring-numeric"
 	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/spf13/viper"
@@ -28,6 +30,16 @@ func Connect(ctx context.Context) (db DB, err error) {
 	if err != nil {
 		return pg{}, err
 	}
+
+	connConfig.AfterConnect = func(ctx context.Context, conn *pgx.Conn) error {
+		conn.ConnInfo().RegisterDataType(pgtype.DataType{
+			Value: &shopspring.Numeric{},
+			Name:  "numeric",
+			OID:   pgtype.NumericOID,
+		})
+		return nil
+	}
+
 	pgpool, err := pgxpool.ConnectConfig(ctx, connConfig)
 	if err != nil {
 		return pg{}, err
