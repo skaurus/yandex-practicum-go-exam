@@ -24,8 +24,8 @@ func (runEnv Env) Logger() *zerolog.Logger {
 	return runEnv.Env.Logger()
 }
 
-// if we would have used `type rfc3339Time time.Time`, we couldn't call any
-// time.Time methods on value of this type and were forced to cast them vice versa
+// if we used `type rfc3339Time time.Time`, we would not be able to call any time.Time
+// method on values of this type and would be forced to cast them back and forth
 type rfc3339Time struct {
 	time.Time
 }
