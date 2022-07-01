@@ -255,3 +255,56 @@ func (runEnv Env) handlerUserGetBalance(c *gin.Context) {
 	decimal.MarshalJSONWithoutQuotes = true
 	c.PureJSON(http.StatusOK, balanceResponse{user.Balance, user.Withdrawn})
 }
+
+type withdrawRequest struct {
+	OrderNumber string          `json:"order"`
+	Sum         decimal.Decimal `json:"sum"`
+}
+
+func (runEnv Env) handlerUserWithdraw(c *gin.Context) {
+	logger := runEnv.Logger()
+
+	user := runEnv.getUserFromCookie(c)
+	if user == nil {
+		logger.Info().Msg("user not authenticated")
+		c.String(http.StatusUnauthorized, "user not authenticated")
+		return
+	}
+
+	body, err := io.ReadAll(c.Request.Body)
+	if err != nil {
+		logger.Error().Err(err).Msg("can't read request body")
+		c.String(http.StatusBadRequest, err.Error())
+		return
+	}
+
+	var data withdrawRequest
+	err = json.Unmarshal(body, &data)
+	if err != nil {
+		logger.Error().Err(err).Msg("can't parse body")
+		c.String(http.StatusBadRequest, "can't parse json")
+		return
+	}
+
+	orderID, err := strconv.Atoi(data.OrderNumber)
+	// I check more errors than required, but this seems like a good idea
+	if err != nil || orderID == 0 || !data.Sum.IsPositive() {
+		logger.Error().Msg("request is wrong")
+		c.String(http.StatusBadRequest, "request is wrong")
+		return
+	}
+
+	err = runEnv.users.Withdraw(c, runEnv.ledger, int(user.ID), orderID, data.Sum)
+	switch err {
+	case nil:
+		c.String(http.StatusOK, "")
+	case users.ErrInsufficientFunds:
+		c.String(http.StatusPaymentRequired, err.Error())
+	case users.ErrNoSuchUser: // should never happen
+		c.String(http.StatusBadRequest, err.Error())
+	default:
+		c.String(http.StatusInternalServerError, err.Error())
+	}
+
+	return
+}

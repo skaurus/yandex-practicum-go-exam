@@ -9,6 +9,7 @@ import (
 
 	"github.com/skaurus/yandex-practicum-go-exam/internal/db"
 	"github.com/skaurus/yandex-practicum-go-exam/internal/env"
+	"github.com/skaurus/yandex-practicum-go-exam/internal/ledger"
 	"github.com/skaurus/yandex-practicum-go-exam/internal/orders"
 	"github.com/skaurus/yandex-practicum-go-exam/internal/users"
 
@@ -20,6 +21,7 @@ type Env struct {
 	Env    *env.Env
 	users  users.Env
 	orders orders.Env
+	ledger ledger.Env
 }
 
 func (runEnv Env) DB() db.DB {
@@ -45,6 +47,7 @@ func SetupRouter(env *env.Env) *gin.Engine {
 		//    same package as method itself.
 		users:  users.Env{Env: env},
 		orders: orders.Env{Env: env},
+		ledger: ledger.Env{Env: env},
 	}
 
 	hmacer = hmac.New(sha256.New, []byte(cookieSecretKey))
@@ -60,6 +63,7 @@ func SetupRouter(env *env.Env) *gin.Engine {
 	router.POST("/api/user/orders", runEnv.handlerOrderRegister)
 	router.GET("/api/user/orders", runEnv.handlerOrdersList)
 	router.GET("/api/user/balance", runEnv.handlerUserGetBalance)
+	router.POST("/api/user/balance/withdraw", runEnv.handlerUserWithdraw)
 
 	return router
 }
