@@ -35,9 +35,9 @@ func (t rfc3339Time) MarshalJSON() ([]byte, error) {
 }
 
 func (t *rfc3339Time) Scan(src interface{}) error {
-	switch src.(type) {
+	switch v := src.(type) {
 	case time.Time:
-		*t = rfc3339Time{src.(time.Time)}
+		*t = rfc3339Time{v}
 	default:
 		return errors.New("incompatible type for rfc3339Time")
 	}
