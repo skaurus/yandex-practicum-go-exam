@@ -133,6 +133,7 @@ func (runEnv Env) Withdraw(ctx context.Context, ledgerEnv ledger.Env, userID int
 			return ErrInsufficientFunds
 		}
 
+		// This is not DB transaction, it's a record in a lender
 		_, err = ledgerEnv.AddTransaction(ctx, userID, OrderNumber, ledger.TransactionCredit, sum)
 		if err != nil {
 			return err
