@@ -17,6 +17,7 @@ import (
 	jsoniter "github.com/json-iterator/go"
 	"github.com/shopspring/decimal"
 	"github.com/spf13/viper"
+	"github.com/theplant/luhn"
 )
 
 var json = jsoniter.ConfigCompatibleWithStandardLibrary
@@ -169,6 +170,12 @@ func (runEnv Env) handlerOrderRegister(c *gin.Context) {
 	}
 
 	if !onlyDigitsRe.Match(orderNumber) {
+		logger.Error().Msg("order format is wrong")
+		c.String(http.StatusUnprocessableEntity, "order format is wrong")
+		return
+	}
+	intNumber, err := strconv.Atoi(string(orderNumber))
+	if err != nil || !luhn.Valid(intNumber) {
 		logger.Error().Msg("order format is wrong")
 		c.String(http.StatusUnprocessableEntity, "order format is wrong")
 		return
