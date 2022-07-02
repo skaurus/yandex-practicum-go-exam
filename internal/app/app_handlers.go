@@ -256,7 +256,22 @@ func (runEnv Env) processOrders() {
 				continue toNextOrder
 			}
 
-			switch res.StatusCode {
+			resStatusCode := res.StatusCode
+
+			body, err := io.ReadAll(res.Body)
+			if err != nil {
+				logger.Error().Err(err).Msg("can't read response body")
+				res.Body.Close()
+				continue toNextOrder
+			}
+
+			err = res.Body.Close()
+			if err != nil {
+				logger.Error().Err(err).Msg("can't close response body")
+				continue toNextOrder
+			}
+
+			switch resStatusCode {
 			case http.StatusOK:
 			case http.StatusTooManyRequests:
 				v := res.Header.Get("Retry-After")
@@ -268,12 +283,6 @@ func (runEnv Env) processOrders() {
 				time.Sleep(time.Duration(seconds) * time.Second)
 				continue toNextOrder
 			default:
-				continue toNextOrder
-			}
-
-			body, err := io.ReadAll(res.Body)
-			if err != nil {
-				logger.Error().Err(err).Msg("can't read response body")
 				continue toNextOrder
 			}
 
