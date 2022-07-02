@@ -217,7 +217,7 @@ func (runEnv Env) handlerOrderRegister(c *gin.Context) {
 }
 
 type accrualResponse struct {
-	OrderNumber string           `json:"number"`
+	OrderNumber string           `json:"order"`
 	Status      orders.Status    `json:"status"`
 	Accrual     *decimal.Decimal `json:"accrual,omitempty"`
 }
