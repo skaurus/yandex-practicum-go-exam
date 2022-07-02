@@ -26,7 +26,7 @@ type queryMaker interface {
 
 type DB interface {
 	handle() queryMaker
-	Exec(context.Context, string, ...interface{}) (int64, error)
+	Exec(context.Context, string, ...interface{}) (int, error)
 	Query(context.Context, string, ...interface{}) (pgx.Rows, error)
 	QueryRow(context.Context, interface{}, string, ...interface{}) (bool, error)
 	QueryAll(context.Context, interface{}, string, ...interface{}) error
@@ -118,12 +118,12 @@ func (db pg) Rollback(ctx context.Context) error {
 	return db.MustTx().Rollback(ctx)
 }
 
-func (db pg) Exec(ctx context.Context, query string, args ...interface{}) (int64, error) {
+func (db pg) Exec(ctx context.Context, query string, args ...interface{}) (int, error) {
 	comTag, err := db.handle().Exec(ctx, query, args...)
 	if err != nil {
 		return 0, err
 	}
-	return comTag.RowsAffected(), nil
+	return int(comTag.RowsAffected()), nil
 }
 
 func (db pg) Query(ctx context.Context, query string, args ...interface{}) (pgx.Rows, error) {
