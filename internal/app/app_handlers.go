@@ -1,6 +1,7 @@
 package app
 
 import (
+	"context"
 	"encoding/base64"
 	"io"
 	"net/http"
@@ -9,11 +10,13 @@ import (
 	"time"
 
 	"github.com/skaurus/yandex-practicum-go-exam/internal/ledger"
+	"github.com/skaurus/yandex-practicum-go-exam/internal/orders"
 	"github.com/skaurus/yandex-practicum-go-exam/internal/users"
 
 	"github.com/gin-gonic/gin"
 	jsoniter "github.com/json-iterator/go"
 	"github.com/shopspring/decimal"
+	"github.com/spf13/viper"
 )
 
 var json = jsoniter.ConfigCompatibleWithStandardLibrary
@@ -210,6 +213,103 @@ func (runEnv Env) handlerOrderRegister(c *gin.Context) {
 		)
 		c.String(http.StatusConflict, "")
 		return
+	}
+}
+
+type accrualResponse struct {
+	OrderNumber string           `json:"number"`
+	Status      orders.Status    `json:"status"`
+	Accrual     *decimal.Decimal `json:"accrual,omitempty"`
+}
+
+// processOrders will search for orders not in a final status, check each one
+// against accrual service, and sleep for 1 second between runs (unless told
+// to wait longer).
+func (runEnv Env) processOrders() {
+	logger := runEnv.Logger()
+
+	accrualURLPrefix := "http://" + viper.Get("ACCRUAL_SYSTEM_ADDRESS").(string) + "/api/orders/"
+	for {
+		// On one hand, it would be more pretty to sleep AFTER we have done some
+		// work; but that means that Sleep has to be also added before EACH
+		// continue; and this is not pretty, not convenient, and easy to forget
+		time.Sleep(time.Second)
+
+		orderList, err := runEnv.orders.GetList(
+			context.Background(),
+			"status != ANY($1)",
+			"",
+			[]string{string(orders.StatusInvalid), string(orders.StatusProcessed)},
+		)
+		if err != nil {
+			logger.Error().Err(err).Msg("db error")
+			continue
+		}
+
+	toNextOrder:
+		for _, order := range *orderList {
+			time.Sleep(time.Second)
+
+			res, err := http.Get(accrualURLPrefix + order.Number)
+			if err != nil {
+				logger.Error().Err(err).Msg("http get error")
+				continue toNextOrder
+			}
+
+			switch res.StatusCode {
+			case http.StatusOK:
+			case http.StatusTooManyRequests:
+				v := res.Header.Get("Retry-After")
+				seconds, err := strconv.Atoi(v)
+				if err != nil {
+					logger.Error().Err(err).Msgf("wrong value of Retry-After header: %s", v)
+					continue toNextOrder
+				}
+				time.Sleep(time.Duration(seconds) * time.Second)
+				continue toNextOrder
+			default:
+				continue toNextOrder
+			}
+
+			body, err := io.ReadAll(res.Body)
+			if err != nil {
+				logger.Error().Err(err).Msg("can't read response body")
+				continue toNextOrder
+			}
+
+			var data accrualResponse
+			err = json.Unmarshal(body, &data)
+			if err != nil {
+				logger.Error().Err(err).Msg("can't parse body")
+				continue toNextOrder
+			}
+			if data.OrderNumber != order.Number {
+				logger.Error().Msgf(
+					"response contains different to requested order number: %s, %s",
+					data.OrderNumber, order.Number,
+				)
+				continue toNextOrder
+			}
+
+			// order is not yet updated
+			if data.Status == order.Status {
+				continue toNextOrder
+			}
+
+			order.Status = data.Status
+			order.Accrual = data.Accrual
+			err = runEnv.orders.Accrue(context.Background(), runEnv.ledger, order)
+			switch err {
+			case nil:
+				logger.Info().Msgf("order %s is updated to %v", order.Number, order)
+			case orders.ErrNoSuchUser: // should never happen
+				logger.Error().Err(err).Msg("can't find order's user")
+				continue toNextOrder
+			default:
+				logger.Error().Err(err).Msg("db error")
+				continue toNextOrder
+			}
+		}
 	}
 }
 

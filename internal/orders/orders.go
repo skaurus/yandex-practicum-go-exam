@@ -3,10 +3,12 @@ package orders
 import (
 	"context"
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/skaurus/yandex-practicum-go-exam/internal/db"
 	"github.com/skaurus/yandex-practicum-go-exam/internal/env"
+	"github.com/skaurus/yandex-practicum-go-exam/internal/ledger"
 
 	"github.com/rs/zerolog"
 	"github.com/shopspring/decimal"
@@ -100,6 +102,16 @@ func (runEnv Env) GetByNumber(ctx context.Context, number string) (o *Order, err
 	return
 }
 
+func (runEnv Env) Update(ctx context.Context, o Order) (rowsAffected int, err error) {
+	ctx, cancel := context.WithTimeout(ctx, viper.Get("DB_QUERY_TIMEOUT").(time.Duration))
+	defer cancel()
+	return runEnv.DB().Exec(
+		ctx,
+		"UPDATE orders SET status = $1, accrual = $2 WHERE number = $3::bigint",
+		o.Status, o.Accrual, o.Number,
+	)
+}
+
 func (runEnv Env) GetListByUserID(ctx context.Context, userID int) (os *[]Order, err error) {
 	os = &[]Order{}
 	ctx, cancel := context.WithTimeout(ctx, viper.Get("DB_QUERY_TIMEOUT").(time.Duration))
@@ -116,4 +128,61 @@ ORDER BY uploaded_at ASC
 		userID,
 	)
 	return
+}
+
+func (runEnv Env) GetList(ctx context.Context, where string, orderBy string, args ...interface{}) (os *[]Order, err error) {
+	os = &[]Order{}
+	ctx, cancel := context.WithTimeout(ctx, viper.Get("DB_QUERY_TIMEOUT").(time.Duration))
+	defer cancel()
+	err = runEnv.DB().QueryAll(
+		ctx,
+		os,
+		fmt.Sprintf(`
+SELECT number::text, user_id, uploaded_at, status, accrual
+FROM orders
+WHERE %s
+%s
+`, where, orderBy),
+		args...,
+	)
+	return
+}
+
+var ErrNoSuchOrder = errors.New("no such order")
+var ErrNoSuchUser = errors.New("no such user")
+
+func (runEnv Env) Accrue(ctx context.Context, ledgerEnv ledger.Env, o Order) error {
+	ctx, cancel := context.WithTimeout(ctx, viper.Get("DB_QUERY_TIMEOUT").(time.Duration))
+	defer cancel()
+
+	return runEnv.DB().Transaction(ctx, func(ctx context.Context, db db.DB) error {
+		rowsAffected, err := runEnv.Update(ctx, o)
+		if err != nil {
+			return err
+		}
+		if rowsAffected == 0 {
+			return ErrNoSuchOrder
+		}
+
+		rowsAffected, err = db.Exec(
+			ctx,
+			// second condition in WHERE - just to be 100% sure
+			"UPDATE users SET balance = balance + $1 WHERE id = $2",
+			o.Accrual, o.UserID,
+		)
+		if err != nil {
+			return err
+		}
+		if rowsAffected == 0 {
+			return ErrNoSuchUser
+		}
+
+		// This is not DB transaction, it's a record in a lender
+		_, err = ledgerEnv.AddTransaction(ctx, int(o.UserID), o.Number, ledger.TransactionDebit, o.Accrual)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
 }
