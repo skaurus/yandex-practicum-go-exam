@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/skaurus/yandex-practicum-go-exam/internal/ledger"
 	"github.com/skaurus/yandex-practicum-go-exam/internal/users"
 
 	"github.com/gin-gonic/gin"
@@ -225,7 +226,7 @@ func (runEnv Env) handlerOrdersList(c *gin.Context) {
 	orders, err := runEnv.orders.GetListByUserID(c, int(user.ID))
 	if err != nil {
 		logger.Error().Err(err).Msgf("db error: %v", err)
-		c.String(http.StatusBadRequest, "db error")
+		c.String(http.StatusInternalServerError, "db error")
 		return
 	}
 
@@ -305,4 +306,34 @@ func (runEnv Env) handlerUserWithdraw(c *gin.Context) {
 	default:
 		c.String(http.StatusInternalServerError, err.Error())
 	}
+}
+
+func (runEnv Env) handlerUserWithdrawalsList(c *gin.Context) {
+	logger := runEnv.Logger()
+
+	user := runEnv.getUserFromCookie(c)
+	if user == nil {
+		logger.Info().Msg("user not authenticated")
+		c.String(http.StatusUnauthorized, "user not authenticated")
+		return
+	}
+
+	credits, err := runEnv.ledger.GetList(
+		c,
+		"user_id = $1 AND operation = $2",
+		"ORDER BY processed_at ASC",
+		int(user.ID), ledger.TransactionCredit,
+	)
+	if err != nil {
+		logger.Error().Err(err).Msgf("db error: %v", err)
+		c.String(http.StatusInternalServerError, "db error")
+		return
+	}
+
+	if len(*credits) == 0 {
+		c.String(http.StatusNoContent, "")
+		return
+	}
+
+	c.PureJSON(http.StatusOK, credits)
 }

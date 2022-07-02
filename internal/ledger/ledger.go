@@ -3,6 +3,7 @@ package ledger
 import (
 	"context"
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/skaurus/yandex-practicum-go-exam/internal/db"
@@ -55,7 +56,7 @@ const (
 type Transaction struct {
 	ID          uint32           `json:"-"`
 	UserID      uint32           `json:"-"`
-	OrderNumber uint32           `json:"number"`
+	OrderNumber uint32           `json:"order"`
 	ProcessedAt rfc3339Time      `json:"processed_at"`
 	Operation   TransactionType  `json:"-"`
 	Value       *decimal.Decimal `json:"sum"`
@@ -95,6 +96,24 @@ WHERE user_id = $1
 ORDER BY processed_at ASC
 `,
 		userID,
+	)
+	return
+}
+
+func (runEnv Env) GetList(ctx context.Context, where string, orderBy string, args ...interface{}) (ts *[]Transaction, err error) {
+	ts = &[]Transaction{}
+	ctx, cancel := context.WithTimeout(ctx, viper.Get("DB_QUERY_TIMEOUT").(time.Duration))
+	defer cancel()
+	err = runEnv.DB().QueryAll(
+		ctx,
+		ts,
+		fmt.Sprintf(`
+SELECT id, user_id, order_number, processed_at, operation, value
+FROM ledger
+WHERE %s
+%s
+`, where, orderBy),
+		args...,
 	)
 	return
 }

@@ -122,7 +122,7 @@ func (runEnv Env) Withdraw(ctx context.Context, ledgerEnv ledger.Env, userID int
 
 		rowsAffected, err := db.Exec(
 			ctx,
-			// second condition in WHERE - to just be 100% sure
+			// second condition in WHERE - just to be 100% sure
 			"UPDATE users SET balance = balance - $1, withdrawn = withdrawn + $1 WHERE id = $2 AND balance >= $1",
 			sum, userID,
 		)
