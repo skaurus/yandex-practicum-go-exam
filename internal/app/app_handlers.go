@@ -228,7 +228,7 @@ type accrualResponse struct {
 func (runEnv Env) processOrders() {
 	logger := runEnv.Logger()
 
-	accrualURLPrefix := "http://" + viper.Get("ACCRUAL_SYSTEM_ADDRESS").(string) + "/api/orders/"
+	accrualURLPrefix := viper.Get("ACCRUAL_SYSTEM_ADDRESS").(string) + "/api/orders/"
 	for {
 		// On one hand, it would be more pretty to sleep AFTER we have done some
 		// work; but that means that Sleep has to be also added before EACH

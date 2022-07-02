@@ -23,7 +23,7 @@ import (
 func initConfig() (err error) {
 	const (
 		defaultRunAddress       = "localhost:8080"
-		defaultAccrualAddress   = "localhost:7979"
+		defaultAccrualAddress   = "http://localhost:7979"
 		defaultCookieDomain     = "localhost"
 		defaultDBConnectTimeout = 1 * time.Second
 		defaultDBQueryTimeout   = 1 * time.Second
