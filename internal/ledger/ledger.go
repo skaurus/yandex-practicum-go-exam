@@ -56,13 +56,13 @@ const (
 type Transaction struct {
 	ID          uint32           `json:"-"`
 	UserID      uint32           `json:"-"`
-	OrderNumber uint32           `json:"order"`
+	OrderNumber string           `json:"order"`
 	ProcessedAt rfc3339Time      `json:"processed_at"`
 	Operation   TransactionType  `json:"-"`
 	Value       *decimal.Decimal `json:"sum"`
 }
 
-func (runEnv Env) AddTransaction(ctx context.Context, userID int, orderNumber int, operation TransactionType, sum decimal.Decimal) (t *Transaction, err error) {
+func (runEnv Env) AddTransaction(ctx context.Context, userID int, orderNumber string, operation TransactionType, sum *decimal.Decimal) (t *Transaction, err error) {
 	t = &Transaction{}
 	ctx, cancel := context.WithTimeout(ctx, viper.Get("DB_QUERY_TIMEOUT").(time.Duration))
 	defer cancel()
@@ -70,9 +70,9 @@ func (runEnv Env) AddTransaction(ctx context.Context, userID int, orderNumber in
 		ctx,
 		t,
 		`
-INSERT INTO ledger (user_id, order_number, operation, value)
+INSERT INTO ledger (user_id, order_number::bigint, operation, value)
 VALUES ($1, $2, $3, $4)
-RETURNING id, user_id, order_number, processed_at, operation, value
+RETURNING id, user_id, order_number::text, processed_at, operation, value
 `,
 		userID, orderNumber, operation, sum,
 	)
@@ -90,7 +90,7 @@ func (runEnv Env) GetListByUserID(ctx context.Context, userID int) (ts *[]Transa
 		ctx,
 		ts,
 		`
-SELECT id, user_id, order_number, processed_at, operation, value
+SELECT id, user_id, order_number::text, processed_at, operation, value
 FROM ledger
 WHERE user_id = $1
 ORDER BY processed_at ASC
@@ -108,7 +108,7 @@ func (runEnv Env) GetList(ctx context.Context, where string, orderBy string, arg
 		ctx,
 		ts,
 		fmt.Sprintf(`
-SELECT id, user_id, order_number, processed_at, operation, value
+SELECT id, user_id, order_number::text, processed_at, operation, value
 FROM ledger
 WHERE %s
 %s

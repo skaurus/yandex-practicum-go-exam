@@ -97,7 +97,7 @@ func (runEnv Env) GetByID(ctx context.Context, id int) (u *User, err error) {
 var ErrNoSuchUser = errors.New("no such user")
 var ErrInsufficientFunds = errors.New("insufficient funds")
 
-func (runEnv Env) Withdraw(ctx context.Context, ledgerEnv ledger.Env, userID int, OrderNumber int, sum decimal.Decimal) error {
+func (runEnv Env) Withdraw(ctx context.Context, ledgerEnv ledger.Env, userID int, OrderNumber string, sum *decimal.Decimal) error {
 	ctx, cancel := context.WithTimeout(ctx, viper.Get("DB_QUERY_TIMEOUT").(time.Duration))
 	defer cancel()
 
@@ -116,7 +116,7 @@ func (runEnv Env) Withdraw(ctx context.Context, ledgerEnv ledger.Env, userID int
 			return ErrNoSuchUser
 		}
 
-		if balance.LessThan(sum) {
+		if balance.LessThan(*sum) {
 			return ErrInsufficientFunds
 		}
 

@@ -287,15 +287,14 @@ func (runEnv Env) handlerUserWithdraw(c *gin.Context) {
 		return
 	}
 
-	orderID, err := strconv.Atoi(data.OrderNumber)
 	// I check more errors than required, but this seems like a good idea
-	if err != nil || orderID == 0 || !data.Sum.IsPositive() {
+	if !onlyDigitsRe.Match([]byte(data.OrderNumber)) || !data.Sum.IsPositive() {
 		logger.Error().Msg("request is wrong")
 		c.String(http.StatusBadRequest, "request is wrong")
 		return
 	}
 
-	err = runEnv.users.Withdraw(c, runEnv.ledger, int(user.ID), orderID, data.Sum)
+	err = runEnv.users.Withdraw(c, runEnv.ledger, int(user.ID), data.OrderNumber, &data.Sum)
 	switch err {
 	case nil:
 		c.String(http.StatusOK, "")
