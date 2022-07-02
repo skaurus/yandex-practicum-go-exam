@@ -344,6 +344,7 @@ func (runEnv Env) handlerOrdersList(c *gin.Context) {
 		return
 	}
 
+	decimal.MarshalJSONWithoutQuotes = true
 	c.PureJSON(http.StatusOK, orders)
 }
 

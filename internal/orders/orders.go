@@ -61,7 +61,7 @@ type Order struct {
 	Number     string           `json:"number"`
 	UserID     uint32           `json:"-"`
 	UploadedAt rfc3339Time      `json:"uploaded_at"`
-	Status     Status           `json:"Status"`
+	Status     Status           `json:"status"`
 	Accrual    *decimal.Decimal `json:"accrual,omitempty"`
 }
 
