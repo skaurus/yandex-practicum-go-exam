@@ -70,8 +70,8 @@ func (runEnv Env) AddTransaction(ctx context.Context, userID int, orderNumber st
 		ctx,
 		t,
 		`
-INSERT INTO ledger (user_id, order_number::bigint, operation, value)
-VALUES ($1, $2, $3, $4)
+INSERT INTO ledger (user_id, order_number, operation, value)
+VALUES ($1, $2::bigint, $3, $4)
 RETURNING id, user_id, order_number::text, processed_at, operation, value
 `,
 		userID, orderNumber, operation, sum,
