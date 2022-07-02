@@ -3,6 +3,7 @@ package db
 import (
 	"context"
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/georgysavva/scany/pgxscan"
@@ -121,42 +122,58 @@ func (db pg) Rollback(ctx context.Context) error {
 func (db pg) Exec(ctx context.Context, query string, args ...interface{}) (int, error) {
 	comTag, err := db.handle().Exec(ctx, query, args...)
 	if err != nil {
-		return 0, err
+		return 0, fmt.Errorf("error [%w] running query: %s", err, query)
 	}
 	return int(comTag.RowsAffected()), nil
 }
 
-func (db pg) Query(ctx context.Context, query string, args ...interface{}) (pgx.Rows, error) {
-	return db.handle().Query(ctx, query, args...)
+func (db pg) Query(ctx context.Context, query string, args ...interface{}) (rows pgx.Rows, err error) {
+	rows, err = db.handle().Query(ctx, query, args...)
+	if err != nil {
+		err = fmt.Errorf("error [%w] running query: %s", err, query)
+	}
+	return
 }
 
 func (db pg) QueryRow(ctx context.Context, dst interface{}, query string, args ...interface{}) (found bool, err error) {
 	rows, err := db.handle().Query(ctx, query, args...)
 	if err != nil {
-		return false, err
+		err = fmt.Errorf("error [%w] running query: %s", err, query)
+		return
 	}
 	defer rows.Close()
+
 	for rows.Next() {
 		if err = pgxscan.ScanRow(dst, rows); err != nil {
+			err = fmt.Errorf("error [%w] reading query: %s", err, query)
 			return
 		}
 		found = true
 	}
-	return found, rows.Err()
+
+	err = rows.Err()
+	if err != nil {
+		err = fmt.Errorf("error [%w] running query: %s", err, query)
+	}
+	return
 }
 
 func (db pg) QueryAll(ctx context.Context, dst interface{}, query string, args ...interface{}) error {
 	rows, err := db.handle().Query(ctx, query, args...)
 	if err != nil {
-		return err
+		return fmt.Errorf("error [%w] running query: %s", err, query)
 	}
 	defer rows.Close()
 	err = pgxscan.ScanAll(dst, rows)
 	if err != nil {
-		return err
+		return fmt.Errorf("error [%w] reading query: %s", err, query)
 	}
 
-	return rows.Err()
+	err = rows.Err()
+	if err != nil {
+		err = fmt.Errorf("error [%w] running query: %s", err, query)
+	}
+	return err
 }
 
 // InitSchema - probably it would be best to use some database migration
