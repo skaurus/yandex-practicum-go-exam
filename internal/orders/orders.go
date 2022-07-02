@@ -45,20 +45,21 @@ func (t *rfc3339Time) Scan(src interface{}) error {
 	return nil
 }
 
-type status string
+type Status string
 
 const (
-	StatusNew        status = "NEW"
-	StatusProcessing status = "PROCESSING"
-	StatusInvalid    status = "INVALID"
-	StatusProcessed  status = "PROCESSED"
+	StatusNew        Status = "NEW"
+	StatusRegistered Status = "REGISTERED"
+	StatusProcessing Status = "PROCESSING"
+	StatusInvalid    Status = "INVALID"
+	StatusProcessed  Status = "PROCESSED"
 )
 
 type Order struct {
 	Number     string           `json:"number"`
 	UserID     uint32           `json:"-"`
 	UploadedAt rfc3339Time      `json:"uploaded_at"`
-	Status     status           `json:"status"`
+	Status     Status           `json:"Status"`
 	Accrual    *decimal.Decimal `json:"accrual,omitempty"`
 }
 

@@ -200,7 +200,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS "users_login_idx" ON users (login)
 DO $$
 BEGIN
 	IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'order_status') THEN
-		CREATE TYPE order_status AS enum ('NEW','PROCESSING','INVALID','PROCESSED');
+		CREATE TYPE order_status AS enum ('NEW','REGISTERED','PROCESSING','INVALID','PROCESSED');
 	END IF;
 END$$
 `)
