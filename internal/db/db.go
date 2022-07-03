@@ -19,14 +19,14 @@ import (
 // and pgx.Tx, so that code can do not think about whether now it should call
 // one of these db methods on pool connection or transaction descriptor.
 // For some reason, there is no such thing from jackc himself.
-// See also handle() and MustTx().
+// See also Handle() and MustTx().
 type queryMaker interface {
 	Exec(ctx context.Context, sql string, args ...interface{}) (pgconn.CommandTag, error)
 	Query(ctx context.Context, sql string, args ...interface{}) (pgx.Rows, error)
 }
 
 type DB interface {
-	handle() queryMaker
+	Handle() queryMaker
 	Exec(context.Context, string, ...interface{}) (int, error)
 	Query(context.Context, string, ...interface{}) (pgx.Rows, error)
 	QueryRow(context.Context, interface{}, string, ...interface{}) (bool, error)
@@ -105,7 +105,7 @@ func (db pg) Transaction(ctx context.Context, doWork func(context.Context, DB) e
 	return nil
 }
 
-func (db pg) handle() queryMaker {
+func (db pg) Handle() queryMaker {
 	if db.tx == nil {
 		return db.conn
 	} else {
@@ -127,7 +127,7 @@ func (db pg) Rollback(ctx context.Context) error {
 }
 
 func (db pg) Exec(ctx context.Context, query string, args ...interface{}) (int, error) {
-	comTag, err := db.handle().Exec(ctx, query, args...)
+	comTag, err := db.Handle().Exec(ctx, query, args...)
 	if err != nil {
 		return 0, fmt.Errorf("error [%w] running query: %s", err, query)
 	}
@@ -135,7 +135,7 @@ func (db pg) Exec(ctx context.Context, query string, args ...interface{}) (int, 
 }
 
 func (db pg) Query(ctx context.Context, query string, args ...interface{}) (rows pgx.Rows, err error) {
-	rows, err = db.handle().Query(ctx, query, args...)
+	rows, err = db.Handle().Query(ctx, query, args...)
 	if err != nil {
 		err = fmt.Errorf("error [%w] running query: %s", err, query)
 	}
@@ -143,7 +143,7 @@ func (db pg) Query(ctx context.Context, query string, args ...interface{}) (rows
 }
 
 func (db pg) QueryRow(ctx context.Context, dst interface{}, query string, args ...interface{}) (found bool, err error) {
-	rows, err := db.handle().Query(ctx, query, args...)
+	rows, err := db.Handle().Query(ctx, query, args...)
 	if err != nil {
 		err = fmt.Errorf("error [%w] running query: %s", err, query)
 		return
@@ -167,7 +167,7 @@ func (db pg) QueryRow(ctx context.Context, dst interface{}, query string, args .
 }
 
 func (db pg) QueryAll(ctx context.Context, dst interface{}, query string, args ...interface{}) error {
-	rows, err := db.handle().Query(ctx, query, args...)
+	rows, err := db.Handle().Query(ctx, query, args...)
 	if err != nil {
 		return fmt.Errorf("error [%w] running query: %s", err, query)
 	}
