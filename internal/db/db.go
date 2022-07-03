@@ -87,6 +87,13 @@ func (db pg) Transaction(ctx context.Context, doWork func(context.Context, DB) e
 
 	err = doWork(ctx, db)
 	if err != nil {
+		rollbackErr := db.Rollback(ctx)
+		if rollbackErr != nil {
+			err = fmt.Errorf(
+				"rollback failed with error: %s; rollback itself was initiated after error: %s",
+				rollbackErr, err,
+			)
+		}
 		return err
 	}
 
