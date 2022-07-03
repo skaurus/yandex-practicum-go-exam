@@ -13,6 +13,7 @@ import (
 	"github.com/skaurus/yandex-practicum-go-exam/internal/orders"
 	"github.com/skaurus/yandex-practicum-go-exam/internal/users"
 
+	"github.com/gin-contrib/logger"
 	"github.com/gin-gonic/gin"
 	"github.com/rs/zerolog"
 )
@@ -53,6 +54,7 @@ func SetupRouter(env *env.Env) *gin.Engine {
 	hmacer = hmac.New(sha256.New, []byte(cookieSecretKey))
 
 	router := gin.Default()
+	router.Use(logger.SetLogger())
 	router.Use(runEnv.middlewareGzipCompression)
 	router.Use(runEnv.middlewareSetCookies)
 
