@@ -138,7 +138,7 @@ func Test_CreateUpdateAndGet(t *testing.T) {
 	assert.Equal(t, userNumberTwo, order.UserID)
 
 	order.Status = StatusInvalid
-	dec, err := decimal.NewFromString("0.42")
+	dec, _ := decimal.NewFromString("0.42")
 	order.Accrual = &dec
 	rowsAffected, err := runEnv.Update(context.Background(), OrderUpdate{order.Number, order.Status, order.Accrual})
 	assert.Nilf(t, err, "order get failed with error %s", err)
