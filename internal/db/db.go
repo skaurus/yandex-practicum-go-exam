@@ -150,13 +150,12 @@ func (db pg) QueryRow(ctx context.Context, dst interface{}, query string, args .
 	}
 	defer rows.Close()
 
-	for rows.Next() {
+	if rows.Next() {
 		if err = pgxscan.ScanRow(dst, rows); err != nil {
 			err = fmt.Errorf("error [%w] reading query: %s", err, query)
 			return
 		}
 		found = true
-		break
 	}
 
 	err = rows.Err()
