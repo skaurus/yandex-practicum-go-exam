@@ -102,7 +102,13 @@ func (runEnv Env) GetByNumber(ctx context.Context, number string) (o *Order, err
 	return
 }
 
-func (runEnv Env) Update(ctx context.Context, o Order) (rowsAffected int, err error) {
+type OrderUpdate struct {
+	Number  string
+	Status  Status
+	Accrual *decimal.Decimal
+}
+
+func (runEnv Env) Update(ctx context.Context, o OrderUpdate) (rowsAffected int, err error) {
 	ctx, cancel := context.WithTimeout(ctx, viper.Get("DB_QUERY_TIMEOUT").(time.Duration))
 	defer cancel()
 	return runEnv.DB().Exec(
@@ -151,12 +157,12 @@ WHERE %s
 var ErrNoSuchOrder = errors.New("no such order")
 var ErrNoSuchUser = errors.New("no such user")
 
-func (runEnv Env) Accrue(ctx context.Context, ledgerEnv ledger.Env, o Order) error {
+func (runEnv Env) Accrue(ctx context.Context, ledgerEnv ledger.Env, o *Order) error {
 	ctx, cancel := context.WithTimeout(ctx, viper.Get("DB_QUERY_TIMEOUT").(time.Duration))
 	defer cancel()
 
 	return runEnv.DB().Transaction(ctx, func(ctx context.Context, db db.DB) error {
-		rowsAffected, err := runEnv.Update(ctx, o)
+		rowsAffected, err := runEnv.Update(ctx, OrderUpdate{o.Number, o.Status, o.Accrual})
 		if err != nil {
 			return err
 		}

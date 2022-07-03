@@ -314,7 +314,7 @@ func (runEnv Env) processOrders() {
 
 			order.Status = data.Status
 			order.Accrual = data.Accrual
-			err = runEnv.orders.Accrue(context.Background(), runEnv.ledger, order)
+			err = runEnv.orders.Accrue(context.Background(), runEnv.ledger, &order)
 			switch err {
 			case nil:
 				logger.Info().Msgf("order %s is updated to %v", order.Number, order)
