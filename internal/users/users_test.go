@@ -67,8 +67,8 @@ func Test_CreateAndGet(t *testing.T) {
 func Test_AccrueAndWithdraw(t *testing.T) {
 	usersEnv := getTestEnv(t)
 	globalEnv := env.Init(usersEnv.DB(), usersEnv.Logger())
-	ordersEnv := orders.Env{&globalEnv}
-	ledgerEnv := ledger.Env{&globalEnv}
+	ordersEnv := orders.Env{Env: &globalEnv}
+	ledgerEnv := ledger.Env{Env: &globalEnv}
 
 	orderNumber := "-1"
 	_, err := usersEnv.DB().Exec(context.Background(), "DELETE FROM orders WHERE number::text = $1", orderNumber)
@@ -97,7 +97,11 @@ func Test_AccrueAndWithdraw(t *testing.T) {
 
 	rowsAffected, err := ordersEnv.Update(
 		context.Background(),
-		orders.OrderUpdate{orderNumber, orders.StatusProcessed, &accrual},
+		orders.OrderUpdate{
+			Number:  orderNumber,
+			Status:  orders.StatusProcessed,
+			Accrual: &accrual,
+		},
 	)
 	assert.Nil(t, err)
 	assert.Equal(t, 1, rowsAffected)
