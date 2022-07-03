@@ -149,6 +149,7 @@ func (db pg) QueryRow(ctx context.Context, dst interface{}, query string, args .
 			return
 		}
 		found = true
+		break
 	}
 
 	err = rows.Err()
