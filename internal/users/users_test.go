@@ -66,12 +66,21 @@ func Test_CreateAndGet(t *testing.T) {
 
 func Test_AccrueAndWithdraw(t *testing.T) {
 	usersEnv := getTestEnv(t)
-	globalEnv := env.Init(usersEnv.DB(), usersEnv.Logger())
-	ordersEnv := orders.Env{Env: &globalEnv}
-	ledgerEnv := ledger.Env{Env: &globalEnv}
+	runEnv := env.Init(usersEnv.DB(), usersEnv.Logger())
+	packageEnvs := env.PackageEnvs{}
+	err := InitEnv(packageEnvs, &runEnv)
+	assert.Nilf(t, err, "error initializing users env")
+	err = orders.InitEnv(packageEnvs, &runEnv)
+	assert.Nilf(t, err, "error initializing orders env")
+	err = ledger.InitEnv(packageEnvs, &runEnv)
+	assert.Nilf(t, err, "error initializing ledger env")
+
+	usersEnv = packageEnvs[ModelName].(Env)
+	ordersEnv := packageEnvs[orders.ModelName].(orders.Env)
+	ledgerEnv := packageEnvs[ledger.ModelName].(ledger.Env)
 
 	orderNumber := "-1"
-	_, err := usersEnv.DB().Exec(context.Background(), "DELETE FROM orders WHERE number::text = $1", orderNumber)
+	_, err = usersEnv.DB().Exec(context.Background(), "DELETE FROM orders WHERE number::text = $1", orderNumber)
 	assert.Nilf(t, err, "cleaning up db has failed with error %v", err)
 
 	accrual := decimal.New(2*42, 0)

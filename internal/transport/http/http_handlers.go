@@ -1,4 +1,4 @@
-package app
+package http
 
 import (
 	"context"
@@ -75,7 +75,7 @@ func (runEnv Env) getUserFromCookie(c *gin.Context) (u *users.User) {
 		return
 	}
 
-	u, err = runEnv.users.GetByLogin(c, string(loginBytes))
+	u, err = usersEnv.GetByLogin(c, string(loginBytes))
 	if err != nil {
 		logger.Error().Err(err).Msg("db error")
 	}
@@ -97,7 +97,7 @@ func (runEnv Env) handlerUserRegister(c *gin.Context) {
 		return
 	}
 
-	user, err := runEnv.users.Create(c, req)
+	user, err := usersEnv.Create(c, req)
 	if err != nil {
 		logger.Error().Err(err).Msgf("db error: %v", err)
 		c.String(http.StatusBadRequest, "db error")
@@ -123,7 +123,7 @@ func (runEnv Env) handlerUserLogin(c *gin.Context) {
 		return
 	}
 
-	user, err := runEnv.users.GetByLogin(c, req.Login)
+	user, err := usersEnv.GetByLogin(c, req.Login)
 	if err != nil {
 		logger.Error().Err(err).Msgf("db error: %v", err)
 		c.String(http.StatusBadRequest, "db error")
@@ -136,7 +136,7 @@ func (runEnv Env) handlerUserLogin(c *gin.Context) {
 		return
 	}
 
-	if ok := runEnv.users.CheckPassword(user, req.Password); !ok {
+	if ok := usersEnv.CheckPassword(user, req.Password); !ok {
 		c.String(http.StatusUnauthorized, "wrong login or password")
 		return
 	}
@@ -181,7 +181,7 @@ func (runEnv Env) handlerOrderRegister(c *gin.Context) {
 		return
 	}
 
-	order, err := runEnv.orders.Create(c, string(orderNumber), int(user.ID))
+	order, err := ordersEnv.Create(c, string(orderNumber), int(user.ID))
 	if err != nil {
 		logger.Error().Err(err).Msgf("db error: %v", err)
 		c.String(http.StatusBadRequest, "db error")
@@ -194,7 +194,7 @@ func (runEnv Env) handlerOrderRegister(c *gin.Context) {
 	}
 
 	// if we here, it probably means such order id was already in db
-	order, err = runEnv.orders.GetByNumber(c, string(orderNumber))
+	order, err = ordersEnv.GetByNumber(c, string(orderNumber))
 	if err != nil {
 		logger.Error().Err(err).Msgf("db error: %v", err)
 		c.String(http.StatusBadRequest, "db error")
@@ -242,7 +242,7 @@ func (runEnv Env) processOrders() {
 		// continue; and this is not pretty, not convenient, and easy to forget
 		time.Sleep(time.Second)
 
-		orderList, err := runEnv.orders.GetList(
+		orderList, err := ordersEnv.GetList(
 			context.Background(),
 			"status != ANY($1)",
 			"",
@@ -268,7 +268,10 @@ func (runEnv Env) processOrders() {
 			body, err := io.ReadAll(res.Body)
 			if err != nil {
 				logger.Error().Err(err).Msg("can't read response body")
-				res.Body.Close()
+				err = res.Body.Close()
+				if err != nil {
+					logger.Error().Err(err).Msg("can't close response body")
+				}
 				continue toNextOrder
 			}
 
@@ -314,7 +317,7 @@ func (runEnv Env) processOrders() {
 
 			order.Status = data.Status
 			order.Accrual = data.Accrual
-			err = runEnv.orders.Accrue(context.Background(), runEnv.ledger, &order)
+			err = ordersEnv.Accrue(context.Background(), ledgerEnv, &order)
 			switch err {
 			case nil:
 				logger.Info().Msgf("order %s is updated to %v", order.Number, order)
@@ -339,20 +342,20 @@ func (runEnv Env) handlerOrdersList(c *gin.Context) {
 		return
 	}
 
-	orders, err := runEnv.orders.GetListByUserID(c, int(user.ID))
+	orderList, err := ordersEnv.GetListByUserID(c, int(user.ID))
 	if err != nil {
 		logger.Error().Err(err).Msgf("db error: %v", err)
 		c.String(http.StatusInternalServerError, "db error")
 		return
 	}
 
-	if len(*orders) == 0 {
+	if len(*orderList) == 0 {
 		c.String(http.StatusNoContent, "")
 		return
 	}
 
 	decimal.MarshalJSONWithoutQuotes = true
-	c.PureJSON(http.StatusOK, orders)
+	c.PureJSON(http.StatusOK, orderList)
 }
 
 type balanceResponse struct {
@@ -411,7 +414,7 @@ func (runEnv Env) handlerUserWithdraw(c *gin.Context) {
 		return
 	}
 
-	err = runEnv.users.Withdraw(c, runEnv.ledger, int(user.ID), data.OrderNumber, &data.Sum)
+	err = usersEnv.Withdraw(c, ledgerEnv, int(user.ID), data.OrderNumber, &data.Sum)
 	switch err {
 	case nil:
 		c.String(http.StatusOK, "")
@@ -434,7 +437,7 @@ func (runEnv Env) handlerUserWithdrawalsList(c *gin.Context) {
 		return
 	}
 
-	credits, err := runEnv.ledger.GetList(
+	credits, err := ledgerEnv.GetList(
 		c,
 		"user_id = $1 AND operation = $2",
 		"ORDER BY processed_at ASC",

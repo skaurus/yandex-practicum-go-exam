@@ -1,10 +1,11 @@
-package app
+package http
 
 import (
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/base64"
 	"fmt"
+	"hash"
 	"math/rand"
 	"strings"
 	"time"
@@ -13,15 +14,7 @@ import (
 	"github.com/spf13/viper"
 )
 
-// RandStringN - see https://stackoverflow.com/a/31832326/320345
-func RandStringN(n int) string {
-	const asciiSymbols = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
-	b := make([]byte, n)
-	for i := range b {
-		b[i] = asciiSymbols[rand.Int63()%int64(len(asciiSymbols))]
-	}
-	return string(b)
-}
+var hmacer hash.Hash
 
 const (
 	uniqCookieName   = "uniq"
@@ -30,6 +23,16 @@ const (
 	// It would be better to take this from config, but alas, we don't have one.
 	cookieSecretKey = "epoxy-equator-human"
 )
+
+// randStringN - see https://stackoverflow.com/a/31832326/320345
+func randStringN(n int) string {
+	const asciiSymbols = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+	b := make([]byte, n)
+	for i := range b {
+		b[i] = asciiSymbols[rand.Int63()%int64(len(asciiSymbols))]
+	}
+	return string(b)
+}
 
 func (runEnv Env) getSignedCookie(c *gin.Context, cookieName string) (found bool, decodedValue string) {
 	logger := runEnv.Logger()
@@ -102,7 +105,7 @@ func (runEnv Env) setSignedCookie(c *gin.Context, cookieName, cookieValue string
 func (runEnv Env) middlewareSetCookies(c *gin.Context) {
 	found, uniq := runEnv.getSignedCookie(c, uniqCookieName)
 	if !found || len(uniq) == 0 {
-		uniq = RandStringN(8)
+		uniq = randStringN(8)
 		runEnv.setSignedCookie(
 			c,
 			uniqCookieName, uniq,

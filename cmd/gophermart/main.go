@@ -2,10 +2,8 @@ package main
 
 import (
 	"context"
-	"errors"
 	"io"
 	"math/rand"
-	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
@@ -113,28 +111,32 @@ func main() {
 
 	runEnv := env.Init(dbInstance, &logger)
 
-	router := app.SetupRouter(&runEnv)
-	srv := &http.Server{
-		Addr:    viper.Get("RUN_ADDRESS").(string),
-		Handler: router,
+	runner, err := app.Run(&runEnv)
+	if err != nil {
+		panic(err)
 	}
-	go func() {
-		err := srv.ListenAndServe()
-		if err != nil && !errors.Is(err, http.ErrServerClosed) {
-			logger.Fatal().Err(err).Msg("can't start the server")
-		}
-	}()
 
-	sig := <-sigCh
-	logger.Info().Msgf("got signal %s, exiting\n", sig)
-	close(sigCh)
-	// If cancel() fires, Shutdown will be executed forcefully, even if there
-	// is still requests processing.
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-	if err := srv.Shutdown(ctx); err != nil {
-		logger.Fatal().Err(err).Msg("can't shutdown the server")
+	errCh := make(chan error, 10)
+	err = runner.Start(errCh)
+	if err != nil {
+		panic(err)
 	}
+
+forLoop:
+	for {
+		select {
+		case err = <-errCh:
+			logger.Fatal().Err(err).Msg("error running server")
+		case sig := <-sigCh:
+			logger.Info().Msgf("got signal %s, exiting\n", sig)
+			if err = runner.Stop(); err != nil {
+				logger.Fatal().Err(err).Msg("can't shutdown the server")
+			}
+			break forLoop
+		}
+	}
+	close(sigCh)
+	close(errCh)
 
 	logger.Info().Msg("exited")
 }

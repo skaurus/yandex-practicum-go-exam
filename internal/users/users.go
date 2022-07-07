@@ -16,16 +16,22 @@ import (
 	"golang.org/x/crypto/argon2"
 )
 
+const ModelName = "users"
+
 type Env struct {
-	Env *env.Env
+	env *env.Env
 }
 
 func (runEnv Env) DB() db.DB {
-	return runEnv.Env.DB()
+	return runEnv.env.DB()
 }
 
 func (runEnv Env) Logger() *zerolog.Logger {
-	return runEnv.Env.Logger()
+	return runEnv.env.Logger()
+}
+
+func InitEnv(packageEnvs env.PackageEnvs, runEnv *env.Env) error {
+	return env.InitModelEnv(packageEnvs, ModelName, Env{env: runEnv})
 }
 
 type User struct {
