@@ -12,7 +12,6 @@ import (
 
 	"github.com/rs/zerolog"
 	"github.com/shopspring/decimal"
-	"github.com/spf13/viper"
 )
 
 const ModelName = "orders"
@@ -86,7 +85,7 @@ type Create struct {
 
 func (runEnv localEnv) Create(ctx context.Context, number string, userID int) (o *Order, err error) {
 	o = &Order{}
-	ctx, cancel := context.WithTimeout(ctx, viper.Get("DB_QUERY_TIMEOUT").(time.Duration))
+	ctx, cancel := context.WithTimeout(ctx, db.QueryTimeout)
 	defer cancel()
 	_, err = runEnv.DB().QueryRow(
 		ctx,
@@ -107,7 +106,7 @@ RETURNING number::text, user_id, uploaded_at, status, accrual
 
 func (runEnv localEnv) GetByNumber(ctx context.Context, number string) (o *Order, err error) {
 	o = &Order{}
-	ctx, cancel := context.WithTimeout(ctx, viper.Get("DB_QUERY_TIMEOUT").(time.Duration))
+	ctx, cancel := context.WithTimeout(ctx, db.QueryTimeout)
 	defer cancel()
 	_, err = runEnv.DB().QueryRow(
 		ctx,
@@ -128,7 +127,7 @@ type OrderUpdate struct {
 }
 
 func (runEnv localEnv) Update(ctx context.Context, o OrderUpdate) (rowsAffected int, err error) {
-	ctx, cancel := context.WithTimeout(ctx, viper.Get("DB_QUERY_TIMEOUT").(time.Duration))
+	ctx, cancel := context.WithTimeout(ctx, db.QueryTimeout)
 	defer cancel()
 	return runEnv.DB().Exec(
 		ctx,
@@ -139,7 +138,7 @@ func (runEnv localEnv) Update(ctx context.Context, o OrderUpdate) (rowsAffected 
 
 func (runEnv localEnv) GetListByUserID(ctx context.Context, userID int) (os *[]Order, err error) {
 	os = &[]Order{}
-	ctx, cancel := context.WithTimeout(ctx, viper.Get("DB_QUERY_TIMEOUT").(time.Duration))
+	ctx, cancel := context.WithTimeout(ctx, db.QueryTimeout)
 	defer cancel()
 	err = runEnv.DB().QueryAll(
 		ctx,
@@ -157,7 +156,7 @@ ORDER BY uploaded_at ASC
 
 func (runEnv localEnv) GetList(ctx context.Context, where string, orderBy string, args ...interface{}) (os *[]Order, err error) {
 	os = &[]Order{}
-	ctx, cancel := context.WithTimeout(ctx, viper.Get("DB_QUERY_TIMEOUT").(time.Duration))
+	ctx, cancel := context.WithTimeout(ctx, db.QueryTimeout)
 	defer cancel()
 	err = runEnv.DB().QueryAll(
 		ctx,
@@ -177,7 +176,7 @@ var ErrNoSuchOrder = errors.New("no such order")
 var ErrNoSuchUser = errors.New("no such user")
 
 func (runEnv localEnv) Accrue(ctx context.Context, o *Order) error {
-	ctx, cancel := context.WithTimeout(ctx, viper.Get("DB_QUERY_TIMEOUT").(time.Duration))
+	ctx, cancel := context.WithTimeout(ctx, db.QueryTimeout)
 	defer cancel()
 
 	return runEnv.DB().Transaction(ctx, func(ctx context.Context, db db.DB) error {

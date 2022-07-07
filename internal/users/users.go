@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/base64"
 	"errors"
-	"time"
 
 	"github.com/skaurus/yandex-practicum-go-exam/internal/db"
 	"github.com/skaurus/yandex-practicum-go-exam/internal/env"
@@ -57,7 +56,7 @@ type Auth struct {
 
 func (runEnv localEnv) Create(ctx context.Context, req Auth) (u *User, err error) {
 	u = &User{}
-	ctx, cancel := context.WithTimeout(ctx, viper.Get("DB_QUERY_TIMEOUT").(time.Duration))
+	ctx, cancel := context.WithTimeout(ctx, db.QueryTimeout)
 	defer cancel()
 	_, err = runEnv.DB().QueryRow(
 		ctx,
@@ -78,7 +77,7 @@ RETURNING id, login, password, balance, withdrawn
 
 func (runEnv localEnv) GetByLogin(ctx context.Context, login string) (u *User, err error) {
 	u = &User{}
-	ctx, cancel := context.WithTimeout(ctx, viper.Get("DB_QUERY_TIMEOUT").(time.Duration))
+	ctx, cancel := context.WithTimeout(ctx, db.QueryTimeout)
 	defer cancel()
 	_, err = runEnv.DB().QueryRow(
 		ctx,
@@ -94,7 +93,7 @@ func (runEnv localEnv) GetByLogin(ctx context.Context, login string) (u *User, e
 
 func (runEnv localEnv) GetByID(ctx context.Context, id int) (u *User, err error) {
 	u = &User{}
-	ctx, cancel := context.WithTimeout(ctx, viper.Get("DB_QUERY_TIMEOUT").(time.Duration))
+	ctx, cancel := context.WithTimeout(ctx, db.QueryTimeout)
 	defer cancel()
 	_, err = runEnv.DB().QueryRow(
 		ctx,
@@ -112,7 +111,7 @@ var ErrNoSuchUser = errors.New("no such user")
 var ErrInsufficientFunds = errors.New("insufficient funds")
 
 func (runEnv localEnv) Withdraw(ctx context.Context, userID int, OrderNumber string, sum *decimal.Decimal) error {
-	ctx, cancel := context.WithTimeout(ctx, viper.Get("DB_QUERY_TIMEOUT").(time.Duration))
+	ctx, cancel := context.WithTimeout(ctx, db.QueryTimeout)
 	defer cancel()
 
 	return runEnv.DB().Transaction(ctx, func(ctx context.Context, db db.DB) error {

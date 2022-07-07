@@ -70,6 +70,8 @@ func (db pg) Close() {
 	db.conn.Close()
 }
 
+var QueryTimeout time.Duration
+
 var ErrNestedTransaction = errors.New("nested transactions are not supported")
 var ErrNotInATransaction = errors.New("not in a transaction now")
 
@@ -187,10 +189,7 @@ func (db pg) QueryAll(ctx context.Context, dst interface{}, query string, args .
 // system - most of all, not for the ability to rollback a schema (it's better
 // to have documented deploy procedures IMO), but for a history of changes.
 func (db pg) InitSchema(origCtx context.Context) error {
-	ctx, cancel := context.WithTimeout(
-		origCtx,
-		viper.Get("DB_QUERY_TIMEOUT").(time.Duration),
-	)
+	ctx, cancel := context.WithTimeout(origCtx, QueryTimeout)
 	_, err := db.Exec(ctx, `
 CREATE TABLE IF NOT EXISTS users (
 	id			serial PRIMARY KEY,
@@ -204,10 +203,7 @@ CREATE TABLE IF NOT EXISTS users (
 		return err
 	}
 
-	ctx, cancel = context.WithTimeout(
-		origCtx,
-		viper.Get("DB_QUERY_TIMEOUT").(time.Duration),
-	)
+	ctx, cancel = context.WithTimeout(origCtx, QueryTimeout)
 	_, err = db.Exec(ctx, `
 CREATE UNIQUE INDEX IF NOT EXISTS "users_login_idx" ON users (login)
 `)
@@ -216,10 +212,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS "users_login_idx" ON users (login)
 		return err
 	}
 
-	ctx, cancel = context.WithTimeout(
-		origCtx,
-		viper.Get("DB_QUERY_TIMEOUT").(time.Duration),
-	)
+	ctx, cancel = context.WithTimeout(origCtx, QueryTimeout)
 	_, err = db.Exec(ctx, `
 DO $$
 BEGIN
@@ -233,10 +226,7 @@ END$$
 		return err
 	}
 
-	ctx, cancel = context.WithTimeout(
-		origCtx,
-		viper.Get("DB_QUERY_TIMEOUT").(time.Duration),
-	)
+	ctx, cancel = context.WithTimeout(origCtx, QueryTimeout)
 	_, err = db.Exec(ctx, `
 CREATE TABLE IF NOT EXISTS orders (
 	number		bigint PRIMARY KEY,
@@ -250,10 +240,7 @@ CREATE TABLE IF NOT EXISTS orders (
 		return err
 	}
 
-	ctx, cancel = context.WithTimeout(
-		origCtx,
-		viper.Get("DB_QUERY_TIMEOUT").(time.Duration),
-	)
+	ctx, cancel = context.WithTimeout(origCtx, QueryTimeout)
 	_, err = db.Exec(ctx, `
 CREATE INDEX IF NOT EXISTS "orders_user_id_uploaded_at_idx" ON orders (user_id, uploaded_at ASC)
 `)
@@ -262,10 +249,7 @@ CREATE INDEX IF NOT EXISTS "orders_user_id_uploaded_at_idx" ON orders (user_id, 
 		return err
 	}
 
-	ctx, cancel = context.WithTimeout(
-		origCtx,
-		viper.Get("DB_QUERY_TIMEOUT").(time.Duration),
-	)
+	ctx, cancel = context.WithTimeout(origCtx, QueryTimeout)
 	// Specification does not require me to store a debit operations, but this
 	// is a very useful feature. For example, we can always recheck user balance.
 	_, err = db.Exec(ctx, `
@@ -281,10 +265,7 @@ END$$
 		return err
 	}
 
-	ctx, cancel = context.WithTimeout(
-		origCtx,
-		viper.Get("DB_QUERY_TIMEOUT").(time.Duration),
-	)
+	ctx, cancel = context.WithTimeout(origCtx, QueryTimeout)
 	_, err = db.Exec(ctx, `
 CREATE TABLE IF NOT EXISTS ledger (
 	id				serial PRIMARY KEY,
@@ -299,10 +280,7 @@ CREATE TABLE IF NOT EXISTS ledger (
 		return err
 	}
 
-	ctx, cancel = context.WithTimeout(
-		origCtx,
-		viper.Get("DB_QUERY_TIMEOUT").(time.Duration),
-	)
+	ctx, cancel = context.WithTimeout(origCtx, QueryTimeout)
 	_, err = db.Exec(ctx, `
 CREATE INDEX IF NOT EXISTS "ledger_user_id_processed_at_idx" ON ledger (user_id, processed_at ASC)
 `)

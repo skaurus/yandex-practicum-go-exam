@@ -11,7 +11,6 @@ import (
 
 	"github.com/rs/zerolog"
 	"github.com/shopspring/decimal"
-	"github.com/spf13/viper"
 )
 
 const ModelName = "ledger"
@@ -78,7 +77,7 @@ type Transaction struct {
 
 func (runEnv localEnv) AddTransaction(ctx context.Context, userID int, orderNumber string, operation TransactionType, sum *decimal.Decimal) (t *Transaction, err error) {
 	t = &Transaction{}
-	ctx, cancel := context.WithTimeout(ctx, viper.Get("DB_QUERY_TIMEOUT").(time.Duration))
+	ctx, cancel := context.WithTimeout(ctx, db.QueryTimeout)
 	defer cancel()
 	_, err = runEnv.DB().QueryRow(
 		ctx,
@@ -98,7 +97,7 @@ RETURNING id, user_id, order_number::text, processed_at, operation, value
 
 func (runEnv localEnv) GetListByUserID(ctx context.Context, userID int) (ts *[]Transaction, err error) {
 	ts = &[]Transaction{}
-	ctx, cancel := context.WithTimeout(ctx, viper.Get("DB_QUERY_TIMEOUT").(time.Duration))
+	ctx, cancel := context.WithTimeout(ctx, db.QueryTimeout)
 	defer cancel()
 	err = runEnv.DB().QueryAll(
 		ctx,
@@ -116,7 +115,7 @@ ORDER BY processed_at ASC
 
 func (runEnv localEnv) GetList(ctx context.Context, where string, orderBy string, args ...interface{}) (ts *[]Transaction, err error) {
 	ts = &[]Transaction{}
-	ctx, cancel := context.WithTimeout(ctx, viper.Get("DB_QUERY_TIMEOUT").(time.Duration))
+	ctx, cancel := context.WithTimeout(ctx, db.QueryTimeout)
 	defer cancel()
 	err = runEnv.DB().QueryAll(
 		ctx,

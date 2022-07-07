@@ -19,24 +19,17 @@ import (
 )
 
 func initConfig() (err error) {
-	const (
-		defaultRunAddress       = "localhost:8080"
-		defaultAccrualAddress   = "http://localhost:7979"
-		defaultCookieDomain     = "localhost"
-		defaultDBConnectTimeout = 1 * time.Second
-		defaultDBQueryTimeout   = 1 * time.Second
-	)
-
-	// In production these values should be placed in a config file (I would
-	// prefer toml format) that is not committed to the repo, but test environment
-	// of this project does not allow me to somehow define a config, so I use
-	// default values as a kind of config.
-	viper.SetDefault("RUN_ADDRESS", defaultRunAddress)
-	viper.SetDefault("ACCRUAL_SYSTEM_ADDRESS", defaultAccrualAddress)
-	viper.SetDefault("COOKIE_DOMAIN", defaultCookieDomain)
-	viper.SetDefault("DB_CONNECT_TIMEOUT", defaultDBConnectTimeout)
-	viper.SetDefault("DB_QUERY_TIMEOUT", defaultDBQueryTimeout)
-	viper.SetDefault("PASSWORD_SECRET", "forum-prefix-guitar")
+	viper.SetConfigName("config")
+	viper.SetConfigType("toml")
+	viper.AddConfigPath("/etc/gophermart/")
+	// Config should never be checked in repo, because it usually contains
+	// sensitive data like DB credentials. But in this project I have control
+	// only over repository.
+	viper.AddConfigPath(".")
+	err = viper.ReadInConfig()
+	if err != nil {
+		return err
+	}
 
 	// I chose that key names are the same as ENV variables (why not)
 	if err = viper.BindEnv("RUN_ADDRESS", "RUN_ADDRESS"); err != nil {
@@ -52,7 +45,7 @@ func initConfig() (err error) {
 	// In the training project (not this one, this is graduate project) we were
 	// required to make ENV priority higher than flags; viper lib holds it other
 	// way around (and I prefer it so). Hope it is not a problem for the autotests.
-	pflag.String("a", defaultRunAddress, "run address of the app")
+	pflag.String("a", viper.Get("RUN_ADDRESS").(string), "run address of the app")
 	if err = viper.BindPFlag("RUN_ADDRESS", pflag.Lookup("a")); err != nil {
 		return err
 	}
@@ -60,7 +53,7 @@ func initConfig() (err error) {
 	if err = viper.BindPFlag("DATABASE_URI", pflag.Lookup("d")); err != nil {
 		return err
 	}
-	pflag.String("r", defaultAccrualAddress, "network address of accrual system")
+	pflag.String("r", viper.Get("ACCRUAL_SYSTEM_ADDRESS").(string), "network address of accrual system")
 	if err = viper.BindPFlag("ACCRUAL_SYSTEM_ADDRESS", pflag.Lookup("r")); err != nil {
 		return err
 	}
@@ -74,10 +67,17 @@ func initLogging(w io.Writer) zerolog.Logger {
 }
 
 func initDB() (db.DB, error) {
-	ctx, cancel := context.WithTimeout(
-		context.Background(),
-		viper.Get("DB_CONNECT_TIMEOUT").(time.Duration),
-	)
+	connectTimeout, err := time.ParseDuration(viper.Get("DB_CONNECT_TIMEOUT").(string))
+	if err != nil {
+		return nil, err
+	}
+
+	db.QueryTimeout, err = time.ParseDuration(viper.Get("DB_QUERY_TIMEOUT").(string))
+	if err != nil {
+		return nil, err
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), connectTimeout)
 	dbInstance, err := db.Connect(ctx)
 	cancel()
 	if err != nil {
