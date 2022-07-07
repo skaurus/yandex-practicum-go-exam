@@ -18,20 +18,28 @@ import (
 
 const ModelName = "users"
 
-type Env struct {
+type localEnv struct {
 	env *env.Env
 }
 
-func (runEnv Env) DB() db.DB {
+func (runEnv localEnv) DB() db.DB {
 	return runEnv.env.DB()
 }
 
-func (runEnv Env) Logger() *zerolog.Logger {
+func (runEnv localEnv) Logger() *zerolog.Logger {
 	return runEnv.env.Logger()
 }
 
-func InitEnv(packageEnvs env.PackageEnvs, runEnv *env.Env) error {
-	return env.InitModelEnv(packageEnvs, ModelName, Env{env: runEnv})
+func InitEnv(runEnv *env.Env) error {
+	return env.InitModelEnv(ModelName, localEnv{env: runEnv})
+}
+
+func GetEnv() localEnv {
+	runEnv, ok := env.PackageEnvs[ModelName]
+	if !ok {
+		panic(ModelName + " Env is not yet initialized")
+	}
+	return runEnv.(localEnv)
 }
 
 type User struct {
@@ -42,12 +50,12 @@ type User struct {
 	Withdrawn decimal.Decimal
 }
 
-type Request struct {
+type Auth struct {
 	Login    string `json:"login"`
 	Password string `json:"password"`
 }
 
-func (runEnv Env) Create(ctx context.Context, req Request) (u *User, err error) {
+func (runEnv localEnv) Create(ctx context.Context, req Auth) (u *User, err error) {
 	u = &User{}
 	ctx, cancel := context.WithTimeout(ctx, viper.Get("DB_QUERY_TIMEOUT").(time.Duration))
 	defer cancel()
@@ -68,7 +76,7 @@ RETURNING id, login, password, balance, withdrawn
 	return
 }
 
-func (runEnv Env) GetByLogin(ctx context.Context, login string) (u *User, err error) {
+func (runEnv localEnv) GetByLogin(ctx context.Context, login string) (u *User, err error) {
 	u = &User{}
 	ctx, cancel := context.WithTimeout(ctx, viper.Get("DB_QUERY_TIMEOUT").(time.Duration))
 	defer cancel()
@@ -84,7 +92,7 @@ func (runEnv Env) GetByLogin(ctx context.Context, login string) (u *User, err er
 	return
 }
 
-func (runEnv Env) GetByID(ctx context.Context, id int) (u *User, err error) {
+func (runEnv localEnv) GetByID(ctx context.Context, id int) (u *User, err error) {
 	u = &User{}
 	ctx, cancel := context.WithTimeout(ctx, viper.Get("DB_QUERY_TIMEOUT").(time.Duration))
 	defer cancel()
@@ -103,7 +111,7 @@ func (runEnv Env) GetByID(ctx context.Context, id int) (u *User, err error) {
 var ErrNoSuchUser = errors.New("no such user")
 var ErrInsufficientFunds = errors.New("insufficient funds")
 
-func (runEnv Env) Withdraw(ctx context.Context, ledgerEnv ledger.Env, userID int, OrderNumber string, sum *decimal.Decimal) error {
+func (runEnv localEnv) Withdraw(ctx context.Context, userID int, OrderNumber string, sum *decimal.Decimal) error {
 	ctx, cancel := context.WithTimeout(ctx, viper.Get("DB_QUERY_TIMEOUT").(time.Duration))
 	defer cancel()
 
@@ -140,7 +148,7 @@ func (runEnv Env) Withdraw(ctx context.Context, ledgerEnv ledger.Env, userID int
 		}
 
 		// This is not DB transaction, it's a record in a lender
-		_, err = ledgerEnv.AddTransaction(ctx, userID, OrderNumber, ledger.TransactionCredit, sum)
+		_, err = ledger.GetEnv().AddTransaction(ctx, userID, OrderNumber, ledger.TransactionCredit, sum)
 		if err != nil {
 			return err
 		}
@@ -164,6 +172,6 @@ func HashPassword(password string) string {
 	return "1:" + base64.StdEncoding.EncodeToString(hashedBytes)
 }
 
-func (runEnv Env) CheckPassword(u *User, password string) bool {
+func (runEnv localEnv) CheckPassword(u *User, password string) bool {
 	return u.Password == HashPassword(password)
 }

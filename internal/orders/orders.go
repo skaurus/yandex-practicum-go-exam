@@ -17,20 +17,28 @@ import (
 
 const ModelName = "orders"
 
-type Env struct {
+type localEnv struct {
 	env *env.Env
 }
 
-func (runEnv Env) DB() db.DB {
+func (runEnv localEnv) DB() db.DB {
 	return runEnv.env.DB()
 }
 
-func (runEnv Env) Logger() *zerolog.Logger {
+func (runEnv localEnv) Logger() *zerolog.Logger {
 	return runEnv.env.Logger()
 }
 
-func InitEnv(packageEnvs env.PackageEnvs, runEnv *env.Env) error {
-	return env.InitModelEnv(packageEnvs, ModelName, Env{env: runEnv})
+func InitEnv(runEnv *env.Env) error {
+	return env.InitModelEnv(ModelName, localEnv{env: runEnv})
+}
+
+func GetEnv() localEnv {
+	runEnv, ok := env.PackageEnvs[ModelName]
+	if !ok {
+		panic(ModelName + " Env is not yet initialized")
+	}
+	return runEnv.(localEnv)
 }
 
 // if we used `type rfc3339Time time.Time`, we would not be able to call any time.Time
@@ -71,7 +79,12 @@ type Order struct {
 	Accrual    *decimal.Decimal `json:"accrual,omitempty"`
 }
 
-func (runEnv Env) Create(ctx context.Context, number string, userID int) (o *Order, err error) {
+type Create struct {
+	Number string
+	UserID uint32
+}
+
+func (runEnv localEnv) Create(ctx context.Context, number string, userID int) (o *Order, err error) {
 	o = &Order{}
 	ctx, cancel := context.WithTimeout(ctx, viper.Get("DB_QUERY_TIMEOUT").(time.Duration))
 	defer cancel()
@@ -92,7 +105,7 @@ RETURNING number::text, user_id, uploaded_at, status, accrual
 	return
 }
 
-func (runEnv Env) GetByNumber(ctx context.Context, number string) (o *Order, err error) {
+func (runEnv localEnv) GetByNumber(ctx context.Context, number string) (o *Order, err error) {
 	o = &Order{}
 	ctx, cancel := context.WithTimeout(ctx, viper.Get("DB_QUERY_TIMEOUT").(time.Duration))
 	defer cancel()
@@ -114,7 +127,7 @@ type OrderUpdate struct {
 	Accrual *decimal.Decimal
 }
 
-func (runEnv Env) Update(ctx context.Context, o OrderUpdate) (rowsAffected int, err error) {
+func (runEnv localEnv) Update(ctx context.Context, o OrderUpdate) (rowsAffected int, err error) {
 	ctx, cancel := context.WithTimeout(ctx, viper.Get("DB_QUERY_TIMEOUT").(time.Duration))
 	defer cancel()
 	return runEnv.DB().Exec(
@@ -124,7 +137,7 @@ func (runEnv Env) Update(ctx context.Context, o OrderUpdate) (rowsAffected int, 
 	)
 }
 
-func (runEnv Env) GetListByUserID(ctx context.Context, userID int) (os *[]Order, err error) {
+func (runEnv localEnv) GetListByUserID(ctx context.Context, userID int) (os *[]Order, err error) {
 	os = &[]Order{}
 	ctx, cancel := context.WithTimeout(ctx, viper.Get("DB_QUERY_TIMEOUT").(time.Duration))
 	defer cancel()
@@ -142,7 +155,7 @@ ORDER BY uploaded_at ASC
 	return
 }
 
-func (runEnv Env) GetList(ctx context.Context, where string, orderBy string, args ...interface{}) (os *[]Order, err error) {
+func (runEnv localEnv) GetList(ctx context.Context, where string, orderBy string, args ...interface{}) (os *[]Order, err error) {
 	os = &[]Order{}
 	ctx, cancel := context.WithTimeout(ctx, viper.Get("DB_QUERY_TIMEOUT").(time.Duration))
 	defer cancel()
@@ -163,7 +176,7 @@ WHERE %s
 var ErrNoSuchOrder = errors.New("no such order")
 var ErrNoSuchUser = errors.New("no such user")
 
-func (runEnv Env) Accrue(ctx context.Context, ledgerEnv ledger.Env, o *Order) error {
+func (runEnv localEnv) Accrue(ctx context.Context, o *Order) error {
 	ctx, cancel := context.WithTimeout(ctx, viper.Get("DB_QUERY_TIMEOUT").(time.Duration))
 	defer cancel()
 
@@ -190,7 +203,7 @@ func (runEnv Env) Accrue(ctx context.Context, ledgerEnv ledger.Env, o *Order) er
 		}
 
 		// This is not DB transaction, it's a record in a lender
-		_, err = ledgerEnv.AddTransaction(ctx, int(o.UserID), o.Number, ledger.TransactionDebit, o.Accrual)
+		_, err = ledger.GetEnv().AddTransaction(ctx, int(o.UserID), o.Number, ledger.TransactionDebit, o.Accrual)
 		if err != nil {
 			return err
 		}

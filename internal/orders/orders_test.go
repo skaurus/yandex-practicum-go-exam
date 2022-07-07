@@ -6,14 +6,14 @@ import (
 	"testing"
 	"time"
 
+	"github.com/skaurus/yandex-practicum-go-exam/internal/db"
+	"github.com/skaurus/yandex-practicum-go-exam/internal/env"
+
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/rs/zerolog"
 	"github.com/shopspring/decimal"
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
-
-	"github.com/skaurus/yandex-practicum-go-exam/internal/db"
-	"github.com/skaurus/yandex-practicum-go-exam/internal/env"
 )
 
 var orderNumberOne = "-1"
@@ -21,7 +21,7 @@ var orderNumberTwo = "-2"
 var userNumberOne uint32 = 1
 var userNumberTwo uint32 = 2
 
-func getTestEnv(t *testing.T) Env {
+func getTestEnv(t *testing.T) localEnv {
 	err := viper.BindEnv("DATABASE_URI", "DATABASE_URI")
 	assert.Nilf(t, err, "viper.BindEnv has failed: %v", err)
 	viper.SetDefault("DB_QUERY_TIMEOUT", 1*time.Second)
@@ -37,7 +37,7 @@ func getTestEnv(t *testing.T) Env {
 
 	zlog := zerolog.New(os.Stdout)
 	env := env.Init(db, &zlog)
-	return Env{&env}
+	return localEnv{&env}
 }
 
 func Test_CreateAndGet(t *testing.T) {

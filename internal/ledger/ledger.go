@@ -16,20 +16,28 @@ import (
 
 const ModelName = "ledger"
 
-type Env struct {
+type localEnv struct {
 	env *env.Env
 }
 
-func (runEnv Env) DB() db.DB {
+func (runEnv localEnv) DB() db.DB {
 	return runEnv.env.DB()
 }
 
-func (runEnv Env) Logger() *zerolog.Logger {
+func (runEnv localEnv) Logger() *zerolog.Logger {
 	return runEnv.env.Logger()
 }
 
-func InitEnv(packageEnvs env.PackageEnvs, runEnv *env.Env) error {
-	return env.InitModelEnv(packageEnvs, ModelName, Env{env: runEnv})
+func InitEnv(runEnv *env.Env) error {
+	return env.InitModelEnv(ModelName, localEnv{env: runEnv})
+}
+
+func GetEnv() localEnv {
+	runEnv, ok := env.PackageEnvs[ModelName]
+	if !ok {
+		panic(ModelName + " Env is not yet initialized")
+	}
+	return runEnv.(localEnv)
 }
 
 // if we used `type rfc3339Time time.Time`, we would not be able to call any time.Time
@@ -68,7 +76,7 @@ type Transaction struct {
 	Value       *decimal.Decimal `json:"sum"`
 }
 
-func (runEnv Env) AddTransaction(ctx context.Context, userID int, orderNumber string, operation TransactionType, sum *decimal.Decimal) (t *Transaction, err error) {
+func (runEnv localEnv) AddTransaction(ctx context.Context, userID int, orderNumber string, operation TransactionType, sum *decimal.Decimal) (t *Transaction, err error) {
 	t = &Transaction{}
 	ctx, cancel := context.WithTimeout(ctx, viper.Get("DB_QUERY_TIMEOUT").(time.Duration))
 	defer cancel()
@@ -88,7 +96,7 @@ RETURNING id, user_id, order_number::text, processed_at, operation, value
 	return
 }
 
-func (runEnv Env) GetListByUserID(ctx context.Context, userID int) (ts *[]Transaction, err error) {
+func (runEnv localEnv) GetListByUserID(ctx context.Context, userID int) (ts *[]Transaction, err error) {
 	ts = &[]Transaction{}
 	ctx, cancel := context.WithTimeout(ctx, viper.Get("DB_QUERY_TIMEOUT").(time.Duration))
 	defer cancel()
@@ -106,7 +114,7 @@ ORDER BY processed_at ASC
 	return
 }
 
-func (runEnv Env) GetList(ctx context.Context, where string, orderBy string, args ...interface{}) (ts *[]Transaction, err error) {
+func (runEnv localEnv) GetList(ctx context.Context, where string, orderBy string, args ...interface{}) (ts *[]Transaction, err error) {
 	ts = &[]Transaction{}
 	ctx, cancel := context.WithTimeout(ctx, viper.Get("DB_QUERY_TIMEOUT").(time.Duration))
 	defer cancel()

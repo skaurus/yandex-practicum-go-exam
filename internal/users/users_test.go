@@ -6,22 +6,22 @@ import (
 	"testing"
 	"time"
 
+	"github.com/skaurus/yandex-practicum-go-exam/internal/db"
+	"github.com/skaurus/yandex-practicum-go-exam/internal/env"
+	"github.com/skaurus/yandex-practicum-go-exam/internal/ledger"
+	"github.com/skaurus/yandex-practicum-go-exam/internal/orders"
+
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/rs/zerolog"
 	"github.com/shopspring/decimal"
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
-
-	"github.com/skaurus/yandex-practicum-go-exam/internal/db"
-	"github.com/skaurus/yandex-practicum-go-exam/internal/env"
-	"github.com/skaurus/yandex-practicum-go-exam/internal/ledger"
-	"github.com/skaurus/yandex-practicum-go-exam/internal/orders"
 )
 
 var userLogin = ""
 var userPassword = "password"
 
-func getTestEnv(t *testing.T) Env {
+func getTestEnv(t *testing.T) localEnv {
 	err := viper.BindEnv("DATABASE_URI", "DATABASE_URI")
 	assert.Nilf(t, err, "viper.BindEnv has failed: %v", err)
 	viper.SetDefault("DB_QUERY_TIMEOUT", 1*time.Second)
@@ -38,7 +38,7 @@ func getTestEnv(t *testing.T) Env {
 
 	zlog := zerolog.New(os.Stdout)
 	env := env.Init(db, &zlog)
-	return Env{&env}
+	return localEnv{&env}
 }
 
 func Test_CreateAndGet(t *testing.T) {
@@ -46,7 +46,7 @@ func Test_CreateAndGet(t *testing.T) {
 
 	zeroDecimal := decimal.New(0, 0)
 
-	user, err := runEnv.Create(context.Background(), Request{userLogin, userPassword})
+	user, err := runEnv.Create(context.Background(), Auth{userLogin, userPassword})
 	assert.Nilf(t, err, "order create failed with error %s", err)
 	assert.IsType(t, &User{}, user)
 	assert.Equal(t, userLogin, user.Login)
@@ -67,17 +67,16 @@ func Test_CreateAndGet(t *testing.T) {
 func Test_AccrueAndWithdraw(t *testing.T) {
 	usersEnv := getTestEnv(t)
 	runEnv := env.Init(usersEnv.DB(), usersEnv.Logger())
-	packageEnvs := env.PackageEnvs{}
-	err := InitEnv(packageEnvs, &runEnv)
+	err := InitEnv(&runEnv)
 	assert.Nilf(t, err, "error initializing users env")
-	err = orders.InitEnv(packageEnvs, &runEnv)
+	err = orders.InitEnv(&runEnv)
 	assert.Nilf(t, err, "error initializing orders env")
-	err = ledger.InitEnv(packageEnvs, &runEnv)
+	err = ledger.InitEnv(&runEnv)
 	assert.Nilf(t, err, "error initializing ledger env")
 
-	usersEnv = packageEnvs[ModelName].(Env)
-	ordersEnv := packageEnvs[orders.ModelName].(orders.Env)
-	ledgerEnv := packageEnvs[ledger.ModelName].(ledger.Env)
+	usersEnv = GetEnv()
+	ordersEnv := orders.GetEnv()
+	ledgerEnv := ledger.GetEnv()
 
 	orderNumber := "-1"
 	_, err = usersEnv.DB().Exec(context.Background(), "DELETE FROM orders WHERE number::text = $1", orderNumber)
@@ -93,10 +92,10 @@ func Test_AccrueAndWithdraw(t *testing.T) {
 		Accrual: &accrual,
 	}
 
-	err = ordersEnv.Accrue(context.Background(), ledgerEnv, order)
+	err = ordersEnv.Accrue(context.Background(), order)
 	assert.ErrorContains(t, err, orders.ErrNoSuchOrder.Error())
 
-	err = usersEnv.Withdraw(context.Background(), ledgerEnv, int(order.UserID), orderNumber, &withdraw)
+	err = usersEnv.Withdraw(context.Background(), int(order.UserID), orderNumber, &withdraw)
 	assert.ErrorContains(t, err, ErrNoSuchUser.Error())
 
 	order, err = ordersEnv.Create(context.Background(), orderNumber, 1)
@@ -122,20 +121,20 @@ func Test_AccrueAndWithdraw(t *testing.T) {
 	assert.Equal(t, orders.StatusProcessed, order.Status)
 	assert.True(t, order.Accrual.Equal(accrual))
 
-	err = ordersEnv.Accrue(context.Background(), ledgerEnv, order)
+	err = ordersEnv.Accrue(context.Background(), order)
 	assert.ErrorContains(t, err, ErrNoSuchUser.Error())
 
-	err = usersEnv.Withdraw(context.Background(), ledgerEnv, int(order.UserID), orderNumber, &withdraw)
+	err = usersEnv.Withdraw(context.Background(), int(order.UserID), orderNumber, &withdraw)
 	assert.ErrorContains(t, err, ErrNoSuchUser.Error())
 
-	user, err := usersEnv.Create(context.Background(), Request{"", ""})
+	user, err := usersEnv.Create(context.Background(), Auth{"", ""})
 	assert.Nil(t, err)
 	assert.IsType(t, &User{}, user)
 	assert.True(t, user.ID > 0)
 
 	order.UserID = user.ID
 
-	err = ordersEnv.Accrue(context.Background(), ledgerEnv, order)
+	err = ordersEnv.Accrue(context.Background(), order)
 	assert.Nil(t, err)
 
 	transactions, err := ledgerEnv.GetList(
@@ -157,7 +156,7 @@ func Test_AccrueAndWithdraw(t *testing.T) {
 	assert.True(t, user.Balance.Equal(accrual))
 	assert.True(t, user.Withdrawn.Equal(decimal.New(0, 0)))
 
-	err = usersEnv.Withdraw(context.Background(), ledgerEnv, int(order.UserID), orderNumber, &withdraw)
+	err = usersEnv.Withdraw(context.Background(), int(order.UserID), orderNumber, &withdraw)
 	assert.Nil(t, err)
 
 	transactions, err = ledgerEnv.GetList(

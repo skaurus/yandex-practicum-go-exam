@@ -16,11 +16,9 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/spf13/viper"
 
+	"github.com/skaurus/yandex-practicum-go-exam/internal/controllers"
 	"github.com/skaurus/yandex-practicum-go-exam/internal/db"
 	"github.com/skaurus/yandex-practicum-go-exam/internal/env"
-	"github.com/skaurus/yandex-practicum-go-exam/internal/ledger"
-	"github.com/skaurus/yandex-practicum-go-exam/internal/orders"
-	"github.com/skaurus/yandex-practicum-go-exam/internal/users"
 )
 
 const modelName = "http"
@@ -37,25 +35,18 @@ func (runEnv Env) Logger() *zerolog.Logger {
 	return runEnv.env.Logger()
 }
 
-var usersEnv users.Env
-var ordersEnv orders.Env
-var ledgerEnv ledger.Env
-
 type runner struct {
 	gin *gin.Engine
 	srv *http.Server
 }
 
-func Runner(packageEnvs env.PackageEnvs, runEnv *env.Env) (*runner, error) {
-	err := env.InitModelEnv(packageEnvs, modelName, Env{env: runEnv})
+func Runner(runEnv *env.Env) (*runner, error) {
+	err := env.InitModelEnv(modelName, Env{env: runEnv})
 	if err != nil {
 		return &runner{}, err
 	}
 
-	usersEnv = packageEnvs[users.ModelName].(users.Env)
-	ordersEnv = packageEnvs[orders.ModelName].(orders.Env)
-	ledgerEnv = packageEnvs[ledger.ModelName].(ledger.Env)
-	localEnv := packageEnvs[modelName].(Env)
+	localEnv := env.PackageEnvs[modelName].(Env)
 
 	hmacer = hmac.New(sha256.New, []byte(cookieSecretKey))
 
@@ -72,7 +63,7 @@ func Runner(packageEnvs env.PackageEnvs, runEnv *env.Env) (*runner, error) {
 	router.POST("/api/user/register", localEnv.handlerUserRegister)
 	router.POST("/api/user/login", localEnv.handlerUserLogin)
 	router.POST("/api/user/orders", localEnv.handlerOrderRegister)
-	go localEnv.processOrders()
+	go controllers.GetEnv().ProcessOrders()
 	router.GET("/api/user/orders", localEnv.handlerOrdersList)
 	router.GET("/api/user/balance", localEnv.handlerUserGetBalance)
 	router.POST("/api/user/balance/withdraw", localEnv.handlerUserWithdraw)

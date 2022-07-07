@@ -1,6 +1,7 @@
 package app
 
 import (
+	"github.com/skaurus/yandex-practicum-go-exam/internal/controllers"
 	"github.com/skaurus/yandex-practicum-go-exam/internal/env"
 	"github.com/skaurus/yandex-practicum-go-exam/internal/ledger"
 	"github.com/skaurus/yandex-practicum-go-exam/internal/orders"
@@ -14,16 +15,18 @@ type Runner interface {
 }
 
 func Run(runEnv *env.Env) (Runner, error) {
-	var packageEnvs = env.PackageEnvs{}
-	if err := users.InitEnv(packageEnvs, runEnv); err != nil {
+	if err := users.InitEnv(runEnv); err != nil {
 		return nil, err
 	}
-	if err := orders.InitEnv(packageEnvs, runEnv); err != nil {
+	if err := orders.InitEnv(runEnv); err != nil {
 		return nil, err
 	}
-	if err := ledger.InitEnv(packageEnvs, runEnv); err != nil {
+	if err := ledger.InitEnv(runEnv); err != nil {
+		return nil, err
+	}
+	if err := controllers.InitEnv(runEnv); err != nil {
 		return nil, err
 	}
 
-	return http.Runner(packageEnvs, runEnv)
+	return http.Runner(runEnv)
 }
