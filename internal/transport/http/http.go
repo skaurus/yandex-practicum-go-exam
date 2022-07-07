@@ -76,7 +76,7 @@ func Runner(packageEnvs env.PackageEnvs, runEnv *env.Env) (*runner, error) {
 	router.GET("/api/user/orders", localEnv.handlerOrdersList)
 	router.GET("/api/user/balance", localEnv.handlerUserGetBalance)
 	router.POST("/api/user/balance/withdraw", localEnv.handlerUserWithdraw)
-	router.GET("/api/user/balance/withdrawals", localEnv.handlerUserWithdrawalsList)
+	router.GET("/api/user/withdrawals", localEnv.handlerUserWithdrawalsList)
 
 	return &runner{gin: router, srv: nil}, nil
 }
