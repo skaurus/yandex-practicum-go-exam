@@ -34,7 +34,7 @@ func randStringN(n int) string {
 	return string(b)
 }
 
-func (runEnv Env) getSignedCookie(c *gin.Context, cookieName string) (found bool, decodedValue string) {
+func (runEnv localEnv) getSignedCookie(c *gin.Context, cookieName string) (found bool, decodedValue string) {
 	logger := runEnv.Logger()
 
 	// I use for which is executed exactly once as a syntactic sugar. Inside I
@@ -85,7 +85,7 @@ func (runEnv Env) getSignedCookie(c *gin.Context, cookieName string) (found bool
 	return found, decodedValue
 }
 
-func (runEnv Env) setSignedCookie(c *gin.Context, cookieName, cookieValue string, maxAge int, path string, secure bool, httpOnly bool) {
+func (runEnv localEnv) setSignedCookie(c *gin.Context, cookieName, cookieValue string, maxAge int, path string, secure bool, httpOnly bool) {
 	logger := runEnv.Logger()
 
 	hmacer.Reset()
@@ -102,7 +102,7 @@ func (runEnv Env) setSignedCookie(c *gin.Context, cookieName, cookieValue string
 }
 
 // middlewareSetCookies - write/read transient cookies
-func (runEnv Env) middlewareSetCookies(c *gin.Context) {
+func (runEnv localEnv) middlewareSetCookies(c *gin.Context) {
 	found, uniq := runEnv.getSignedCookie(c, uniqCookieName)
 	if !found || len(uniq) == 0 {
 		uniq = randStringN(8)

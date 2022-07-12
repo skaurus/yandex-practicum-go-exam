@@ -23,16 +23,24 @@ import (
 
 const modelName = "http"
 
-type Env struct {
+type localEnv struct {
 	env *env.Env
 }
 
-func (runEnv Env) DB() db.DB {
+func (runEnv localEnv) DB() db.DB {
 	return runEnv.env.DB()
 }
 
-func (runEnv Env) Logger() *zerolog.Logger {
+func (runEnv localEnv) Logger() *zerolog.Logger {
 	return runEnv.env.Logger()
+}
+
+func InitEnv(runEnv *env.Env) error {
+	return env.InitModelEnv(modelName, localEnv{env: runEnv})
+}
+
+func GetEnv() localEnv {
+	return env.GetEnv(modelName).(localEnv)
 }
 
 type runner struct {
@@ -41,12 +49,12 @@ type runner struct {
 }
 
 func Runner(runEnv *env.Env) (*runner, error) {
-	err := env.InitModelEnv(modelName, Env{env: runEnv})
+	err := InitEnv(runEnv)
 	if err != nil {
 		return &runner{}, err
 	}
 
-	localEnv := env.PackageEnvs[modelName].(Env)
+	localEnv := GetEnv()
 
 	hmacer = hmac.New(sha256.New, []byte(cookieSecretKey))
 

@@ -19,7 +19,7 @@ type Interface interface {
 	Logger() *zerolog.Logger
 }
 
-type EnvsStorage map[string]Interface
+type envsStorage map[string]Interface
 
 func (env Env) DB() db.DB {
 	return env.db
@@ -33,14 +33,22 @@ func Init(dbInstance db.DB, loggerInstance *zerolog.Logger) Env {
 	return Env{dbInstance, loggerInstance}
 }
 
-var PackageEnvs = EnvsStorage{}
+var packageEnvs = envsStorage{}
 
 var ErrDuplicateModelName = errors.New("duplicate model name")
 
 func InitModelEnv(modelName string, modelEnv Interface) error {
-	if _, ok := PackageEnvs[modelName]; ok {
+	if _, ok := packageEnvs[modelName]; ok {
 		return fmt.Errorf("%w with model %s", ErrDuplicateModelName, modelName)
 	}
-	PackageEnvs[modelName] = modelEnv
+	packageEnvs[modelName] = modelEnv
 	return nil
+}
+
+func GetEnv(modelName string) Interface {
+	runEnv, ok := packageEnvs[modelName]
+	if !ok {
+		panic(modelName + " Env is not yet initialized")
+	}
+	return runEnv
 }

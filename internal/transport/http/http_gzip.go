@@ -36,7 +36,7 @@ func (w gzWriter) WriteHeader(statusCode int) {
 var gzipReader *gzip.Reader
 var gzipWriter *gzip.Writer
 
-func (runEnv Env) middlewareGzipCompression(c *gin.Context) {
+func (runEnv localEnv) middlewareGzipCompression(c *gin.Context) {
 	logger := runEnv.Logger()
 
 	// reading gzipped request

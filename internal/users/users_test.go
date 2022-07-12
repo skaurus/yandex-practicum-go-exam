@@ -24,7 +24,7 @@ var userPassword = "password"
 func getTestEnv(t *testing.T) localEnv {
 	err := viper.BindEnv("DATABASE_URI", "DATABASE_URI")
 	assert.Nilf(t, err, "viper.BindEnv has failed: %v", err)
-	viper.SetDefault("DB_QUERY_TIMEOUT", 1*time.Second)
+	db.QueryTimeout = time.Second
 	viper.SetDefault("PASSWORD_SECRET", "secret")
 
 	db, err := db.Connect(context.Background())

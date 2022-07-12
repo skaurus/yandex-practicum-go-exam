@@ -18,7 +18,7 @@ import (
 
 var json = jsoniter.ConfigCompatibleWithStandardLibrary
 
-func (runEnv Env) parseUserRequest(c *gin.Context) (ok bool, req users.Auth) {
+func (runEnv localEnv) parseUserRequest(c *gin.Context) (ok bool, req users.Auth) {
 	logger := runEnv.Logger()
 
 	body, err := io.ReadAll(c.Request.Body)
@@ -47,7 +47,7 @@ const (
 	loginCookieMaxAge = time.Duration(1e9 * 60 * 60 * 24 * 365) // seconds
 )
 
-func (runEnv Env) setAuthCookie(c *gin.Context, u *users.User) {
+func (runEnv localEnv) setAuthCookie(c *gin.Context, u *users.User) {
 	loginBytes := []byte(u.Login)
 
 	runEnv.setSignedCookie(
@@ -57,7 +57,7 @@ func (runEnv Env) setAuthCookie(c *gin.Context, u *users.User) {
 	)
 }
 
-func (runEnv Env) getUserFromCookie(c *gin.Context) (u *users.User) {
+func (runEnv localEnv) getUserFromCookie(c *gin.Context) (u *users.User) {
 	logger := runEnv.Logger()
 
 	found, encodedLogin := runEnv.getSignedCookie(c, loginCookieName)
@@ -79,13 +79,13 @@ func (runEnv Env) getUserFromCookie(c *gin.Context) (u *users.User) {
 	return
 }
 
-func (runEnv Env) handlerSayMyName(c *gin.Context) {
+func (runEnv localEnv) handlerSayMyName(c *gin.Context) {
 	user := runEnv.getUserFromCookie(c)
 
 	c.String(http.StatusOK, user.Login)
 }
 
-func (runEnv Env) handlerUserRegister(c *gin.Context) {
+func (runEnv localEnv) handlerUserRegister(c *gin.Context) {
 	logger := runEnv.Logger()
 
 	ok, req := runEnv.parseUserRequest(c)
@@ -108,7 +108,7 @@ func (runEnv Env) handlerUserRegister(c *gin.Context) {
 	c.String(http.StatusOK, "")
 }
 
-func (runEnv Env) handlerUserLogin(c *gin.Context) {
+func (runEnv localEnv) handlerUserLogin(c *gin.Context) {
 	logger := runEnv.Logger()
 
 	ok, req := runEnv.parseUserRequest(c)
@@ -131,7 +131,7 @@ func (runEnv Env) handlerUserLogin(c *gin.Context) {
 	c.String(http.StatusOK, "")
 }
 
-func (runEnv Env) handlerOrderRegister(c *gin.Context) {
+func (runEnv localEnv) handlerOrderRegister(c *gin.Context) {
 	logger := runEnv.Logger()
 
 	user := runEnv.getUserFromCookie(c)
@@ -177,7 +177,7 @@ func (runEnv Env) handlerOrderRegister(c *gin.Context) {
 	}
 }
 
-func (runEnv Env) handlerOrdersList(c *gin.Context) {
+func (runEnv localEnv) handlerOrdersList(c *gin.Context) {
 	logger := runEnv.Logger()
 
 	user := runEnv.getUserFromCookie(c)
@@ -208,7 +208,7 @@ type balanceResponse struct {
 	Withdrawn decimal.Decimal `json:"withdrawn"`
 }
 
-func (runEnv Env) handlerUserGetBalance(c *gin.Context) {
+func (runEnv localEnv) handlerUserGetBalance(c *gin.Context) {
 	logger := runEnv.Logger()
 
 	user := runEnv.getUserFromCookie(c)
@@ -227,7 +227,7 @@ type withdrawRequest struct {
 	Sum         decimal.Decimal `json:"sum"`
 }
 
-func (runEnv Env) handlerUserWithdraw(c *gin.Context) {
+func (runEnv localEnv) handlerUserWithdraw(c *gin.Context) {
 	logger := runEnv.Logger()
 
 	user := runEnv.getUserFromCookie(c)
@@ -268,7 +268,7 @@ func (runEnv Env) handlerUserWithdraw(c *gin.Context) {
 	}
 }
 
-func (runEnv Env) handlerUserWithdrawalsList(c *gin.Context) {
+func (runEnv localEnv) handlerUserWithdrawalsList(c *gin.Context) {
 	logger := runEnv.Logger()
 
 	user := runEnv.getUserFromCookie(c)

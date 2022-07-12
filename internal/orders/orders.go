@@ -14,7 +14,7 @@ import (
 	"github.com/shopspring/decimal"
 )
 
-const ModelName = "orders"
+const modelName = "orders"
 
 type localEnv struct {
 	env *env.Env
@@ -29,15 +29,11 @@ func (runEnv localEnv) Logger() *zerolog.Logger {
 }
 
 func InitEnv(runEnv *env.Env) error {
-	return env.InitModelEnv(ModelName, localEnv{env: runEnv})
+	return env.InitModelEnv(modelName, localEnv{env: runEnv})
 }
 
 func GetEnv() localEnv {
-	runEnv, ok := env.PackageEnvs[ModelName]
-	if !ok {
-		panic(ModelName + " Env is not yet initialized")
-	}
-	return runEnv.(localEnv)
+	return env.GetEnv(modelName).(localEnv)
 }
 
 // if we used `type rfc3339Time time.Time`, we would not be able to call any time.Time

@@ -24,7 +24,7 @@ var userNumberTwo uint32 = 2
 func getTestEnv(t *testing.T) localEnv {
 	err := viper.BindEnv("DATABASE_URI", "DATABASE_URI")
 	assert.Nilf(t, err, "viper.BindEnv has failed: %v", err)
-	viper.SetDefault("DB_QUERY_TIMEOUT", 1*time.Second)
+	db.QueryTimeout = time.Second
 
 	db, err := db.Connect(context.Background())
 	assert.Nilf(t, err, "connect has failed with error %v", err)
