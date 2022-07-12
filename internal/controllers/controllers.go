@@ -23,30 +23,26 @@ import (
 	"github.com/theplant/luhn"
 )
 
-const ModelName = "controller"
+const modelName = "controller"
 
-type Env struct {
+type localEnv struct {
 	env *env.Env
 }
 
-func (runEnv Env) DB() db.DB {
+func (runEnv localEnv) DB() db.DB {
 	return runEnv.env.DB()
 }
 
-func (runEnv Env) Logger() *zerolog.Logger {
+func (runEnv localEnv) Logger() *zerolog.Logger {
 	return runEnv.env.Logger()
 }
 
 func InitEnv(runEnv *env.Env) error {
-	return env.InitModelEnv(ModelName, Env{env: runEnv})
+	return env.InitModelEnv(modelName, localEnv{env: runEnv})
 }
 
-func GetEnv() Env {
-	runEnv, ok := env.PackageEnvs[ModelName]
-	if !ok {
-		panic(ModelName + " Env is not yet initialized")
-	}
-	return runEnv.(Env)
+func GetEnv() localEnv {
+	return env.GetEnv(modelName).(localEnv)
 }
 
 var ErrDB = errors.New("db error")
@@ -62,7 +58,7 @@ var ErrRequestIsWrong = errors.New("request is wrong")
 
 var json = jsoniter.ConfigCompatibleWithStandardLibrary
 
-func (runEnv Env) CreateUser(ctx context.Context, create users.Auth) (user *users.User, err error) {
+func (runEnv localEnv) CreateUser(ctx context.Context, create users.Auth) (user *users.User, err error) {
 	user, err = users.GetEnv().Create(ctx, create)
 	if err != nil {
 		return
@@ -77,7 +73,7 @@ func (runEnv Env) CreateUser(ctx context.Context, create users.Auth) (user *user
 	return
 }
 
-func (runEnv Env) AuthUser(ctx context.Context, auth users.Auth) (user *users.User, err error) {
+func (runEnv localEnv) AuthUser(ctx context.Context, auth users.Auth) (user *users.User, err error) {
 	user, err = users.GetEnv().GetByLogin(ctx, auth.Login)
 	if err != nil {
 		return
@@ -100,7 +96,7 @@ func (runEnv Env) AuthUser(ctx context.Context, auth users.Auth) (user *users.Us
 // This does not seem to be the case with Go though... but anyway.
 var onlyDigitsRe = regexp.MustCompile(`^[0-9]+$`)
 
-func (runEnv Env) RegisterOrder(ctx context.Context, create orders.Create) (order *orders.Order, err error) {
+func (runEnv localEnv) RegisterOrder(ctx context.Context, create orders.Create) (order *orders.Order, err error) {
 	if !onlyDigitsRe.Match([]byte(create.Number)) {
 		err = ErrOrderFormatIsWrong
 		return
@@ -148,7 +144,7 @@ type accrualResponse struct {
 // ProcessOrders will search for orders not in a final status, check each one
 // against accrual service, and sleep for 1 second between runs (unless told
 // to wait longer).
-func (runEnv Env) ProcessOrders() {
+func (runEnv localEnv) ProcessOrders() {
 	logger := runEnv.Logger()
 
 	accrualURLPrefix := viper.Get("ACCRUAL_SYSTEM_ADDRESS").(string) + "/api/orders/"
@@ -248,11 +244,11 @@ func (runEnv Env) ProcessOrders() {
 	}
 }
 
-func (runEnv Env) ListOrders(ctx context.Context, userID int) (orderList *[]orders.Order, err error) {
+func (runEnv localEnv) ListOrders(ctx context.Context, userID int) (orderList *[]orders.Order, err error) {
 	return orders.GetEnv().GetListByUserID(ctx, userID)
 }
 
-func (runEnv Env) WithdrawFromUser(ctx context.Context, userID int, orderNumber string, sum *decimal.Decimal) (err error) {
+func (runEnv localEnv) WithdrawFromUser(ctx context.Context, userID int, orderNumber string, sum *decimal.Decimal) (err error) {
 	// I check more errors than required, but this seems like a good idea
 	if !onlyDigitsRe.Match([]byte(orderNumber)) || !sum.IsPositive() {
 		err = ErrRequestIsWrong
@@ -261,7 +257,7 @@ func (runEnv Env) WithdrawFromUser(ctx context.Context, userID int, orderNumber 
 	return users.GetEnv().Withdraw(ctx, userID, orderNumber, sum)
 }
 
-func (runEnv Env) ListUserWithdrawals(ctx context.Context, userID int) (ts *[]ledger.Transaction, err error) {
+func (runEnv localEnv) ListUserWithdrawals(ctx context.Context, userID int) (ts *[]ledger.Transaction, err error) {
 	return ledger.GetEnv().GetList(
 		ctx,
 		"user_id = $1 AND operation = $2",
