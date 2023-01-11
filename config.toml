@@ -1,0 +1,7 @@
+accrual_system_address = 'http://localhost:7979'
+cookie_domain = 'localhost'
+database_uri = 'postgresql://gu:mayday-bonjour-diego@localhost/gophermart'
+db_connect_timeout = '1s'
+db_query_timeout = '1s'
+password_secret = 'forum-prefix-guitar'
+run_address = 'localhost:8080'
